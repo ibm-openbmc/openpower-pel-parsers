@@ -1,5 +1,6 @@
 import math
 
+
 def hexdump(data: memoryview,
             bytes_per_line: int = 16,
             bytes_per_chunk: int = 4) -> list:
@@ -23,7 +24,7 @@ def hexdump(data: memoryview,
     # Iterate one line at a time
     for i in range(0, len(data), bytes_per_line):
 
-        raw  = ''
+        raw = ''
         text = ''
 
         # Iterate the data for this line.
@@ -40,11 +41,10 @@ def hexdump(data: memoryview,
             text += chr(b) if 0x20 <= b < 0x7f else '.'
 
         # Left justify to pad spaces on the right.
-        raw  = raw.ljust(char_per_line)
+        raw = raw.ljust(char_per_line)
         text = text.ljust(bytes_per_line)
 
         # Append a new line in the output
         dump.append(("%08X:  %s  |%s|") % (i, raw, text))
 
     return dump
-
