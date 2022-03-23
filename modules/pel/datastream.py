@@ -41,7 +41,7 @@ class DataStream:
         current index.
         """
         assert self.check_range(num_bytes), "range check failure"
-        o_mv = self.data[self.index : self.index + num_bytes]
+        o_mv = self.data[self.index: self.index + num_bytes]
         self.inc_index(num_bytes)
         return o_mv
 
@@ -65,5 +65,4 @@ class DataStream:
         assert None != is_signed,  "is_signed not defined"
 
         return int.from_bytes(self.get_mem(num_bytes),
-                              byteorder = byte_order, signed = is_signed)
-
+                              byteorder=byte_order, signed=is_signed)
