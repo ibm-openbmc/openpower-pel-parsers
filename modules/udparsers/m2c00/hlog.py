@@ -14,6 +14,31 @@ from udparsers.m2c00.utils import get_header_file_path
 HistoryLogField = namedtuple('HistoryLogField', ('name', 'size'))
 
 
+# The following regular expressions describe lines from the C++ header file.
+# The header file defines an array of history log field structs.
+
+# Regex for line that starts the array.  Opening brace could be on this line or
+# the next one.
+#
+# Example:
+#   struct mex_hlog_field mex_hlog_fields[MEX_HLOG_FIELD_COUNT] =
+HLOG_START_RE = re.compile(r'\s*struct\s+mex_hlog_field\s+'
+                            'mex_hlog_fields.*\=\s*\{?\s*')
+
+# Regex for line that defines one field struct in the array.  Trailing comma is
+# optional on the last array element.
+#
+# Example:
+#   { 1, "hl_net_block_crc_failures" }, 
+HLOG_FIELD_RE = re.compile(r'\s*\{\s*([12])\s*\,\s*"([^"]+)"\s*\}\s*\,?\s*')
+
+# Regex for line that ends the array.
+#
+# Example:
+#   };
+HLOG_END_RE = re.compile(r'\s*\}\s*;\s*')
+
+
 def get_hlog_fields(header_file_path: str = None) -> list:
     """
     Returns the list of fields in the history log.
@@ -28,23 +53,17 @@ def get_hlog_fields(header_file_path: str = None) -> list:
     if not header_file_path:
         header_file_path = get_header_file_path()
 
-    # Compile regular expressions for parsing C++ header file
-    start_re = re.compile(r'\s*struct\s+mex_hlog_field\s+'
-                           'mex_hlog_fields.*\=\s*\{?\s*')
-    field_re = re.compile(r'\s*\{\s*([12])\s*\,\s*"([^"]+)"\s*\}\s*\,?\s*')
-    end_re = re.compile(r'\s*\}\s*;\s*')
-
     # Build list of fields by parsing C++ header file
     fields = []
     in_data_structure = False
     with open(header_file_path) as file:
         for line in file:
-            if start_re.fullmatch(line):
+            if HLOG_START_RE.fullmatch(line):
                 in_data_structure = True
-            elif end_re.fullmatch(line):
+            elif HLOG_END_RE.fullmatch(line):
                 in_data_structure = False
             elif in_data_structure:
-                match = field_re.fullmatch(line)
+                match = HLOG_FIELD_RE.fullmatch(line)
                 if match:
                     properties = match.groups()
                     if len(properties) == 2:

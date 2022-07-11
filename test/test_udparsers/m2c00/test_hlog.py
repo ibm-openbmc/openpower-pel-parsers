@@ -118,6 +118,10 @@ class TestHLog(unittest.TestCase):
         self.assertEqual(fields[1].name, 'hl_power_ups')
         self.assertEqual(fields[1].size, 2)
 
+        # Test where header file does not exist
+        with self.assertRaises(Exception):
+            fields = get_hlog_fields('/does_not_exist/dne/mex_pte.h')
+
     def test_parse_hlog_data(self):
 
 		# Test with real header file generated during firmware build
