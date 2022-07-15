@@ -1,7 +1,8 @@
 import os
 import unittest
 
-from udparsers.m2c00.utils import format_timestamp, get_header_file_path
+from udparsers.m2c00.utils import (format_timestamp, get_header_file_path,
+                                   get_trace_string_file_path)
 
 
 class TestUtils(unittest.TestCase):
@@ -26,3 +27,8 @@ class TestUtils(unittest.TestCase):
         path = get_header_file_path()
         self.assertTrue(os.path.exists(path))
         self.assertEqual(os.path.basename(path), 'mex_pte.h')
+
+    def test_get_trace_string_file_path(self):
+        path = get_trace_string_file_path()
+        self.assertTrue(os.path.exists(path))
+        self.assertEqual(os.path.basename(path), 'mexStringFile')
