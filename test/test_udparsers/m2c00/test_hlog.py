@@ -165,14 +165,14 @@ class TestHLog(unittest.TestCase):
                           b'\xF0')    # hl_ss_sets
         lines = parse_hlog_data(data)
         expected_lines = [
-            'Hex Dump:',
-            '',
+            'Hex Dump',
+            '--------',
             '00000000:  23011246 07A113FF 2F0002AB 1621EF20  |#..F..../....!. |',
             '00000010:  21030000 16F78809 20030230 0B110003  |!....... ..0....|',
             '00000020:  98765689 10100101 01020004 00F0      |.vV...........  |',
             '',
-            'Non-Zero Field Values:',
-            '',
+            'Non-Zero Field Values',
+            '---------------------',
             'hl_isolated_standby: 0x23',
             'hl_net_block_crc_failures: 0x01',
             'hl_power_ups: 0x1246',
@@ -221,12 +221,12 @@ class TestHLog(unittest.TestCase):
         data = memoryview(b'\x01\xDE\xAD')
         lines = parse_hlog_data(data, self.header_file_path)
         expected_lines = [
-            'Hex Dump:',
-            '',
+            'Hex Dump',
+            '--------',
             '00000000:  01DEAD                               |...             |',
             '',
-            'Non-Zero Field Values:',
-            '',
+            'Non-Zero Field Values',
+            '---------------------',
             'hl_isolated_standby: 0x01',
             'hl_power_ups: 0xDEAD',
         ]
@@ -236,12 +236,12 @@ class TestHLog(unittest.TestCase):
         data = memoryview(b'\x01\xDE')
         lines = parse_hlog_data(data, self.header_file_path)
         expected_lines = [
-            'Hex Dump:',
-            '',
+            'Hex Dump',
+            '--------',
             '00000000:  01DE                                 |..              |',
             '',
-            'Non-Zero Field Values:',
-            '',
+            'Non-Zero Field Values',
+            '---------------------',
             'hl_isolated_standby: 0x01',
         ]
         self.assertEqual(lines, expected_lines)
@@ -250,12 +250,12 @@ class TestHLog(unittest.TestCase):
         data = memoryview(b'\x01\xDE\xAD\xBE')
         lines = parse_hlog_data(data, self.header_file_path)
         expected_lines = [
-            'Hex Dump:',
-            '',
+            'Hex Dump',
+            '--------',
             '00000000:  01DEADBE                             |....            |',
             '',
-            'Non-Zero Field Values:',
-            '',
+            'Non-Zero Field Values',
+            '---------------------',
             'hl_isolated_standby: 0x01',
             'hl_power_ups: 0xDEAD',
         ]
@@ -265,12 +265,12 @@ class TestHLog(unittest.TestCase):
         data = memoryview(b'\x00\xDE\xAD')
         lines = parse_hlog_data(data, self.header_file_path)
         expected_lines = [
-            'Hex Dump:',
-            '',
+            'Hex Dump',
+            '--------',
             '00000000:  00DEAD                               |...             |',
             '',
-            'Non-Zero Field Values:',
-            '',
+            'Non-Zero Field Values',
+            '---------------------',
             'hl_power_ups: 0xDEAD',
         ]
         self.assertEqual(lines, expected_lines)

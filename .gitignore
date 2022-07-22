@@ -1,1 +1,3 @@
 __pycache__/
+build/
+modules/openpower_pel_parsers.egg-info/
