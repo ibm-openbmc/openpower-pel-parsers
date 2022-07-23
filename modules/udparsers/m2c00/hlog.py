@@ -87,8 +87,8 @@ def parse_hlog_data(data: memoryview,
     """
 
     # Add hex dump of all history log data to output
-    lines = ['Hex Dump:']
-    lines.append('')
+    lines = ['Hex Dump']
+    lines.append('--------')
     lines.extend(hexdump(data))
     lines.append('')
 
@@ -96,8 +96,8 @@ def parse_hlog_data(data: memoryview,
     fields = get_hlog_fields(header_file_path)
 
     # Loop over fields.  Add field name/value to output if value is != 0.
-    lines.append('Non-Zero Field Values:')
-    lines.append('')
+    lines.append('Non-Zero Field Values')
+    lines.append('---------------------')
     stream = DataStream(data, byte_order='big', is_signed=False)
     for field in fields:
         if not stream.check_range(field.size):
