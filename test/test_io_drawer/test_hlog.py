@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from udparsers.m2c00.hlog import get_hlog_fields, parse_hlog_data
+from io_drawer.hlog import get_hlog_fields, parse_hlog_data
 
 
 class TestHLog(unittest.TestCase):

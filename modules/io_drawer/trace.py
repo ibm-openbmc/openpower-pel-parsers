@@ -4,9 +4,9 @@ This module parses and formats trace data.
 
 import re
 
+from io_drawer.utils import format_timestamp, get_trace_string_file_path
 from pel.datastream import DataStream
 from pel.hexdump import hexdump
-from udparsers.m2c00.utils import format_timestamp, get_trace_string_file_path
 
 
 class TraceString:
@@ -143,6 +143,9 @@ class TraceBufferHeader:
 
     # Size in bytes of the header
     SIZE = 32
+
+    # Valid values for the comp field; this field contains the buffer name
+    BUFFER_NAMES = ['IICS', 'IICM', 'POWR', 'FANS', 'INFO', 'ERRL']
 
     def __init__(self):
         """

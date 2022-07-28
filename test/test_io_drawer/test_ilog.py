@@ -3,7 +3,7 @@ import re
 import tempfile
 import unittest
 
-from udparsers.m2c00.ilog import PTETableEntry, PTETable, parse_ilog_data
+from io_drawer.ilog import PTETableEntry, PTETable, parse_ilog_data
 
 
 class TestILogBase(unittest.TestCase):

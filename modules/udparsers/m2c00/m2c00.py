@@ -5,10 +5,10 @@ User data parser for error logs from an I/O drawer.
 from collections import OrderedDict
 import json
 
+from io_drawer.hlog import parse_hlog_data
+from io_drawer.ilog import parse_ilog_data
+from io_drawer.trace import parse_trace_data
 from pel.hexdump import hexdump
-from udparsers.m2c00.hlog import parse_hlog_data
-from udparsers.m2c00.ilog import parse_ilog_data
-from udparsers.m2c00.trace import parse_trace_data
 
 
 # Supported sub-section types

@@ -2,11 +2,10 @@ import os
 import tempfile
 import unittest
 
+from io_drawer.trace import (TraceString, TraceStringFile, TraceBufferHeader,
+                             TraceEntry, TraceBuffer, _format_trace_entry,
+                             parse_trace_data)
 from pel.datastream import DataStream
-from udparsers.m2c00.trace import (TraceString, TraceStringFile,
-                                   TraceBufferHeader, TraceEntry,
-                                   TraceBuffer, _format_trace_entry,
-                                   parse_trace_data)
 
 
 class TestTraceBase(unittest.TestCase):

@@ -1,8 +1,8 @@
 import os
 import unittest
 
-from udparsers.m2c00.utils import (format_timestamp, get_header_file_path,
-                                   get_trace_string_file_path)
+from io_drawer.utils import (format_timestamp, get_header_file_path,
+                             get_trace_string_file_path)
 
 
 class TestUtils(unittest.TestCase):

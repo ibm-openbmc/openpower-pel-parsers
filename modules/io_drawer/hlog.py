@@ -5,9 +5,9 @@ This module contains functions to parse and format history log data.
 import re
 from collections import namedtuple
 
+from io_drawer.utils import get_header_file_path
 from pel.datastream import DataStream
 from pel.hexdump import hexdump
-from udparsers.m2c00.utils import get_header_file_path
 
 
 # This namedtuple represents a field in the history log

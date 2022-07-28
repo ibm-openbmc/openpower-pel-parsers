@@ -2,28 +2,27 @@ import os
 import tempfile
 import unittest
 
-from udparsers.m2c00.spcn_trace import (_format_ilog_data, _format_trace_data,
-                                        parse_spcn_trace_data,
-                                        parse_spcn_trace_file)
+from io_drawer.dump import (_format_ilog_data, _format_trace_data,
+                            parse_dump_data, parse_dump_file)
 
 
-class TestSPCNTrace(unittest.TestCase):
+class TestDump(unittest.TestCase):
 
     def setUp(self):
         self.header_file_path = self._create_temp_file()
-        self.spcn_trace_file_path = self._create_temp_file()
+        self.dump_file_path = self._create_temp_file()
         self.string_file_path = self._create_temp_file()
 
     def tearDown(self):
         os.remove(self.header_file_path)
-        os.remove(self.spcn_trace_file_path)
+        os.remove(self.dump_file_path)
         os.remove(self.string_file_path)
 
     def _create_header_file(self, lines: list):
         self._write_file(self.header_file_path, lines)
 
-    def _create_spcn_trace_file(self, lines: list):
-        self._write_file(self.spcn_trace_file_path, lines)
+    def _create_dump_file(self, lines: list):
+        self._write_file(self.dump_file_path, lines)
 
     def _create_string_file(self, lines: list):
         self._write_file(self.string_file_path, lines)
@@ -179,11 +178,11 @@ class TestSPCNTrace(unittest.TestCase):
         _format_trace_data(data, lines, self.string_file_path)
         self.assertEqual(lines, expected_lines)
 
-    def test_parse_spcn_trace_data(self):
+    def test_parse_dump_data(self):
         # Test where there is no data
         data = memoryview(b'')
         expected_lines = []
-        lines = parse_spcn_trace_data(data)
+        lines = parse_dump_data(data)
         self.assertEqual(lines, expected_lines)
 
         # Test where there is only ILOG data.
@@ -202,7 +201,7 @@ class TestSPCNTrace(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_spcn_trace_data(data)
+        lines = parse_dump_data(data)
         self.assertEqual(lines, expected_lines)
 
         # Test where there is ILOG data and one trace buffer.
@@ -258,7 +257,7 @@ class TestSPCNTrace(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_spcn_trace_data(data)
+        lines = parse_dump_data(data)
         self.assertEqual(lines, expected_lines)
 
         # Test where there is ILOG data and multiple trace buffers
@@ -357,14 +356,14 @@ class TestSPCNTrace(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_spcn_trace_data(data, self.header_file_path,
-                                      self.string_file_path)
+        lines = parse_dump_data(data, self.header_file_path,
+                                self.string_file_path)
         self.assertEqual(lines, expected_lines)
 
-    def test_parse_spcn_trace_file(self):
+    def test_parse_dump_file(self):
         # Test where works.  Use real header file and string file generated
         # during firmware build.  Hexdump in format used by BMC web interface.
-        self._create_spcn_trace_file([
+        self._create_dump_file([
             '0000:  8ADF0F19 010000DE 02200142 46414e53  <......... .BFANS>',
             '0010:  20202020 00000000 00000000 0000003C  <    ...........<>',
             '0020:  000000FE 0000003D 8AAB0123 00074644  <.......=...#..FD>',
@@ -395,12 +394,12 @@ class TestSPCNTrace(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_spcn_trace_file(self.spcn_trace_file_path)
+        lines = parse_dump_file(self.dump_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test where works.  Use dummy header file and string file.  Hexdump is
         # in format used by pre-BMC web interface.
-        self._create_spcn_trace_file([
+        self._create_dump_file([
             '8D E3 DF A0 01 01 44 EF 02 20 01 42 46 41 4E 53 ......D.. .BFANS',
             '20 20 20 20 00 00 00 00 00 00 00 00 00 00 00 3C     ...........<',
             '00 00 00 FE 00 00 00 3D 8A DF 01 86 00 08 46 54 .......=......FT',
@@ -440,24 +439,23 @@ class TestSPCNTrace(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_spcn_trace_file(self.spcn_trace_file_path,
-                                      self.header_file_path,
-                                      self.string_file_path)
+        lines = parse_dump_file(self.dump_file_path, self.header_file_path,
+                                self.string_file_path)
         self.assertEqual(lines, expected_lines)
 
-        # Test where fails.  No data is found in SPCN Trace file.
-        self._create_spcn_trace_file([])
-        lines = parse_spcn_trace_file(self.spcn_trace_file_path)
+        # Test where fails.  No data is found in the IO drawer dump file.
+        self._create_dump_file([])
+        lines = parse_dump_file(self.dump_file_path)
         self.assertEqual(lines, [])
 
-        # Test where fails.  SPCN Trace file has unexpected hex dump line
+        # Test where fails.  IO drawer dump file has unexpected hex dump line
         # format.
-        self._create_spcn_trace_file([
+        self._create_dump_file([
             '00000000:  DEADBEEF BADC0FFE 42414443 30464645  |........BADC0FFE|'
         ])
-        lines = parse_spcn_trace_file(self.spcn_trace_file_path)
+        lines = parse_dump_file(self.dump_file_path)
         self.assertEqual(lines, [])
 
-        # Test where fails.  SPCN Trace file does not exist.
+        # Test where fails.  IO drawer dump file does not exist.
         with self.assertRaises(Exception):
-            lines = parse_spcn_trace_file('/does_not_exist/dne/spcn_trace')
+            lines = parse_dump_file('/does_not_exist/dne/dump')

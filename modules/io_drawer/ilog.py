@@ -4,8 +4,8 @@ This module parses and formats ilog/PTE data.
 
 import re
 
+from io_drawer.utils import format_timestamp, get_header_file_path
 from pel.datastream import DataStream
-from udparsers.m2c00.utils import format_timestamp, get_header_file_path
 
 
 # Size in bytes of an ilog entry 
