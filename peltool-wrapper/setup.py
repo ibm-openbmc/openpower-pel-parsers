@@ -4,7 +4,7 @@ import os
 # This package is just used to install all of the component peltool
 # packages and doesn't contain any code of its own.
 
-version = os.getenv('PELTOOL_VERSION', '0.1')
+version = os.getenv('PELTOOL_VERSION', '0.2')
 
 setup(
     name        = "peltool-wrapper",
