@@ -4,7 +4,7 @@ This module parses and formats trace data.
 
 import re
 
-from io_drawer.utils import format_timestamp, get_trace_string_file_path
+from io_drawer.utils import format_timestamp
 from pel.datastream import DataStream
 from pel.hexdump import hexdump
 
@@ -74,22 +74,15 @@ class TraceStringFile:
     #   92602121||I> ADT7470: trace_level = %u||adt7470_fan_ctl.cpp(926)
     LINE_RE = re.compile(r'\s*([0-9]+)\s*\|\|(.*)\|\|(.*)\n?')
 
-    def __init__(self, string_file_path: str = None):
+    def __init__(self, string_file_path: str):
         """
         Constructor.
 
         Parses the specified trace string file to obtain the trace strings.
-
-        If the string file path is not specified, it will be found in the
-        standard location.
         """
 
         self.string_file_path = string_file_path
         self.trace_strings = []
-
-        # Find string file path if not specified
-        if not self.string_file_path:
-            self.string_file_path = get_trace_string_file_path()
 
         # Parse string file to obtain trace strings
         with open(self.string_file_path) as file:
@@ -382,15 +375,11 @@ def _format_trace_entry(entry: TraceEntry, string_file: TraceStringFile,
                 lines.append(f'{indent}{dump_line}')
 
 
-def parse_trace_data(data: memoryview,
-                     string_file_path: str = None) -> list:
+def parse_trace_data(data: memoryview, string_file_path: str) -> list:
     """
     Parses binary trace data and returns formatted output.
 
     Parses the specified trace string file to obtain the trace strings.
-
-    If the string file path is not specified, it will be found in the
-    standard location.
     """
 
     # Parse trace string file

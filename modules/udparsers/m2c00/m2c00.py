@@ -5,6 +5,7 @@ User data parser for error logs from an I/O drawer.
 from collections import OrderedDict
 import json
 
+from io_drawer.drawer_type import DrawerType, DRAWER_TYPES
 from io_drawer.hlog import parse_hlog_data
 from io_drawer.ilog import parse_ilog_data
 from io_drawer.trace import parse_trace_data
@@ -17,6 +18,21 @@ SUB_TYPE_ILOG = 73
 SUB_TYPE_TRACE = 84
 
 
+def _get_drawer_type(version: int) -> DrawerType:
+    """
+    Returns the drawer type that corresponds to the specified user data section
+    version.
+
+    Raises an exception if no drawer type is found.
+    """
+
+    for drawer_type in DRAWER_TYPES:
+        if drawer_type.user_data_version == version:
+            return drawer_type
+
+    raise ValueError(f'Unexpected user data section version: {version}')
+
+
 def _parse_hlog(version: int, data: memoryview) -> dict:
     """
     Parses history log data.
@@ -26,7 +42,9 @@ def _parse_hlog(version: int, data: memoryview) -> dict:
 
     lines = []
     if data:
-        lines = parse_hlog_data(data)
+        drawer_type = _get_drawer_type(version)
+        header_file_path = drawer_type.get_header_file_path()
+        lines = parse_hlog_data(data, header_file_path)
     return {'History Log': lines}
 
 
@@ -39,7 +57,9 @@ def _parse_ilog(version: int, data: memoryview) -> dict:
 
     lines = []
     if data:
-        lines = parse_ilog_data(data)
+        drawer_type = _get_drawer_type(version)
+        header_file_path = drawer_type.get_header_file_path()
+        lines = parse_ilog_data(data, header_file_path)
     return {'ILOG': lines}
 
 
@@ -52,7 +72,9 @@ def _parse_trace(version: int, data: memoryview) -> dict:
 
     lines = []
     if data:
-        lines = parse_trace_data(data)
+        drawer_type = _get_drawer_type(version)
+        string_file_path = drawer_type.get_trace_string_file_path()
+        lines = parse_trace_data(data, string_file_path)
     return {'Trace': lines}
 
 

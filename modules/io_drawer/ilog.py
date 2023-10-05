@@ -4,7 +4,7 @@ This module parses and formats ilog/PTE data.
 
 import re
 
-from io_drawer.utils import format_timestamp, get_header_file_path
+from io_drawer.utils import format_timestamp
 from pel.datastream import DataStream
 
 
@@ -31,8 +31,8 @@ REPORTED_VALUE = 0x00040000
 # the next one.
 #
 # Example:
-#   struct pte_entry_struct static_pte_entry_table[PTE_TABLE_SIZE] = 
-TBL_START_RE = re.compile(r'\s*struct\s+pte_entry_struct\s+'
+#   static struct pte_entry_struct static_pte_entry_table[PTE_TABLE_SIZE] = 
+TBL_START_RE = re.compile(r'(\s*static\s+)?\s*struct\s+pte_entry_struct\s+'
                            'static_pte_entry_table.*\=\s*\{?\s*')
 
 # Regex for line that defines one table entry.  The message format field is a
@@ -156,22 +156,15 @@ class PTETable:
     Represents the PTE table defined in the C++ header file.
     """
 
-    def __init__(self, header_file_path: str = None):
+    def __init__(self, header_file_path: str):
         """
         Constructor.
 
         Parses the specified C++ header file to obtain the PTE table.
-
-        If the header file path is not specified, it will be found in
-        the standard location.
         """
 
         self.header_file_path = header_file_path
         self.entries = []
-
-        # Find header file path if not specified
-        if not self.header_file_path:
-            self.header_file_path = get_header_file_path()
 
         # Parse header file to get PTE table
         self._parse_header_file()
@@ -237,15 +230,11 @@ class PTETable:
                         self._add_entry(match.groups())
 
 
-def parse_ilog_data(data: memoryview,
-                    header_file_path: str = None) -> list:
+def parse_ilog_data(data: memoryview, header_file_path: str) -> list:
     """
     Parses binary ilog/PTE data and returns formatted output.
 
     Parses the specified C++ header file to obtain the PTE table.
-
-    If the header file path is not specified, it will be found in the
-    standard location.
     """
 
     # Get PTE Table from C++ header file

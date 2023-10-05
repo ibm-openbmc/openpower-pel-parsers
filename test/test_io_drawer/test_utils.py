@@ -1,8 +1,6 @@
-import os
 import unittest
 
-from io_drawer.utils import (format_timestamp, get_header_file_path,
-                             get_trace_string_file_path)
+from io_drawer.utils import format_timestamp
 
 
 class TestUtils(unittest.TestCase):
@@ -22,13 +20,3 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(format_timestamp(-1), '--------')
         self.assertEqual(format_timestamp(0xFFFF), '--------')
         self.assertEqual(format_timestamp(0x10000), '--------')
-
-    def test_get_header_file_path(self):
-        path = get_header_file_path()
-        self.assertTrue(os.path.exists(path))
-        self.assertEqual(os.path.basename(path), 'mex_pte.h')
-
-    def test_get_trace_string_file_path(self):
-        path = get_trace_string_file_path()
-        self.assertTrue(os.path.exists(path))
-        self.assertEqual(os.path.basename(path), 'mexStringFile')

@@ -2,7 +2,9 @@ import os
 import tempfile
 import unittest
 
-from io_drawer.dump import (_format_ilog_data, _format_trace_data,
+from io_drawer.drawer_type import MEX_DRAWER_TYPE, NIMITZ_DRAWER_TYPE
+from io_drawer.dump import (_get_drawer_type_names, _get_drawer_type,
+                            _format_ilog_data, _format_trace_data,
                             parse_dump_data, parse_dump_file)
 
 
@@ -38,8 +40,25 @@ class TestDump(unittest.TestCase):
                 file.write(line)
                 file.write('\n')
 
+    def test__get_drawer_type_names(self):
+        names = _get_drawer_type_names()
+        self.assertEqual(names, ['mex', 'nimitz'])
+
+    def test__get_drawer_type(self):
+        # Test with MEX drawer type
+        drawer_type = _get_drawer_type('mex')
+        self.assertIs(drawer_type, MEX_DRAWER_TYPE)
+
+        # Test with Nimitz drawer type
+        drawer_type = _get_drawer_type('nimitz')
+        self.assertIs(drawer_type, NIMITZ_DRAWER_TYPE)
+
+        # Test with invalid drawer type
+        drawer_type = _get_drawer_type('foo')
+        self.assertIsNone(drawer_type)
+
     def test__format_ilog_data(self):
-		# Test with real header file generated during firmware build
+        # Test with MEX header file generated during firmware build
         data = memoryview(                      # ILOG entry 1
                           b'\x8A\xDF'           #   timestamp
                           b'\x0F\x19'           #   seq_num
@@ -60,7 +79,33 @@ class TestDump(unittest.TestCase):
             ''
         ]
         lines = []
-        _format_ilog_data(data, lines)
+        header_file_path = MEX_DRAWER_TYPE.get_header_file_path()
+        _format_ilog_data(data, lines, header_file_path)
+        self.assertEqual(lines, expected_lines)
+
+        # Test with Nimitz header file generated during firmware build
+        data = memoryview(                      # ILOG entry 1
+                          b'\x8A\xDF'           #   timestamp
+                          b'\x0F\x19'           #   seq_num
+                          b'\x01\x00\x00\xDE'   #   pte (010000**)
+                                                # ILOG entry 2
+                          b'\x8D\x47'           #   timestamp
+                          b'\x10\x24'           #   seq_num
+                          b'\x01\x04\x00\x00')  #   pte (01040000)
+        expected_lines = [
+            'ILOG',
+            '',
+            'hh:mm:ss seq  pppppppp description',
+            '-------- ---- -------- ------------------------------------',
+            ' 9:52:31 0F19 010000DE Begin power on, node type = 0xDE',
+            '10:02:47 1024 01040000 Power on complete',
+            '',
+            '-------------------------------------------------------------------------',
+            ''
+        ]
+        lines = []
+        header_file_path = NIMITZ_DRAWER_TYPE.get_header_file_path()
+        _format_ilog_data(data, lines, header_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test with dummy header file
@@ -89,7 +134,7 @@ class TestDump(unittest.TestCase):
         self.assertEqual(lines, expected_lines)
 
     def test__format_trace_data(self):
-		# Test with real string file generated during firmware build
+        # Test with MEX string file generated during firmware build
         data = memoryview(                      # buffer header
                           b'\x02'               #   ver
                           b'\x20'               #   hdr_len (32)
@@ -130,7 +175,53 @@ class TestDump(unittest.TestCase):
             ''
         ]
         lines = []
-        _format_trace_data(data, lines)
+        string_file_path = MEX_DRAWER_TYPE.get_trace_string_file_path()
+        _format_trace_data(data, lines, string_file_path)
+        self.assertEqual(lines, expected_lines)
+
+        # Test with Nimitz string file generated during firmware build
+        data = memoryview(                      # buffer header
+                          b'\x02'               #   ver
+                          b'\x20'               #   hdr_len (32)
+                          b'\x01'               #   time_flg
+                          b'\x42'               #   endian_flg
+                          b'\x46\x41\x4e\x53'   #   comp (FANS)
+                          b'\x20\x20\x20\x20'   #
+                          b'\x00\x00\x00\x00'   #
+                          b'\x00\x00\x00\x00'   #   rsvd
+                          b'\x00\x00\x00\x3C'   #   size (32 + 28 = 60)
+                          b'\x00\x00\x00\xFE'   #   times_wrap (254)
+                          b'\x00\x00\x00\x3D'   #   next_free
+                                                # entry 1
+                          b'\x8A\xAB'           #   tbh (9:51:39)
+                          b'\x01\x23'           #   tbl
+                          b'\x00\x07'           #   length (7)
+                          b'\x46\x44'           #   tag (TYPE_FIELDBIN)
+                          b'\xFF\xFF\xFF\xFF'   #   hash_value (4294967295)
+                          b'\x00\x00\x02\x32'   #   line (562)
+                          b'\x01\x02\x03\x04'   #   data
+                          b'\xDE\xAD\xBE'       #
+                          b'\x00'               #   padding for 4-byte alignment
+                          b'\x00\x00\x00\x1C')  #   entry_size (28)
+        expected_lines = [
+            'Trace',
+            '',
+            'Component: FANS',
+            'Version: 2',
+            'Size: 60',
+            'Times Wrapped: 254',
+            '',
+            'HH:MM:SS Seq  Line  Entry Data',
+            '-------- ---- ----- ----------',
+            ' 9:51:39 0123   562 No trace string found with hash value 4294967295',
+            '                    00000000     01020304  DEADBE                           .......         ',
+            '',
+            '-------------------------------------------------------------------------',
+            ''
+        ]
+        lines = []
+        string_file_path = NIMITZ_DRAWER_TYPE.get_trace_string_file_path()
+        _format_trace_data(data, lines, string_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test with dummy string file
@@ -180,13 +271,16 @@ class TestDump(unittest.TestCase):
 
     def test_parse_dump_data(self):
         # Test where there is no data
+        # Use MEX header file and string file generated during firmware build
         data = memoryview(b'')
         expected_lines = []
-        lines = parse_dump_data(data)
+        header_file_path = MEX_DRAWER_TYPE.get_header_file_path()
+        string_file_path = MEX_DRAWER_TYPE.get_trace_string_file_path()
+        lines = parse_dump_data(data, header_file_path, string_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test where there is only ILOG data.
-		# Use real header file and string file generated during firmware build.
+        # Use MEX header file and string file generated during firmware build
         data = memoryview(                      # ILOG entry 1
                           b'\x8A\xDF'           #   timestamp
                           b'\x0F\x19'           #   seq_num
@@ -201,11 +295,13 @@ class TestDump(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_dump_data(data)
+        header_file_path = MEX_DRAWER_TYPE.get_header_file_path()
+        string_file_path = MEX_DRAWER_TYPE.get_trace_string_file_path()
+        lines = parse_dump_data(data, header_file_path, string_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test where there is ILOG data and one trace buffer.
-		# Use real header file and string file generated during firmware build.
+        # Use Nimitz header file and string file generated during firmware build
         data = memoryview(                      # ILOG entry 1
                           b'\x8A\xDF'           #   timestamp
                           b'\x0F\x19'           #   seq_num
@@ -257,7 +353,9 @@ class TestDump(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_dump_data(data)
+        header_file_path = NIMITZ_DRAWER_TYPE.get_header_file_path()
+        string_file_path = NIMITZ_DRAWER_TYPE.get_trace_string_file_path()
+        lines = parse_dump_data(data, header_file_path, string_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test where there is ILOG data and multiple trace buffers
@@ -361,7 +459,7 @@ class TestDump(unittest.TestCase):
         self.assertEqual(lines, expected_lines)
 
     def test_parse_dump_file(self):
-        # Test where works.  Use real header file and string file generated
+        # Test where works.  Use MEX header file and string file generated
         # during firmware build.  Hexdump in format used by BMC web interface.
         self._create_dump_file([
             '0000:  8ADF0F19 010000DE 02200142 46414e53  <......... .BFANS>',
@@ -394,7 +492,10 @@ class TestDump(unittest.TestCase):
             '-------------------------------------------------------------------------',
             ''
         ]
-        lines = parse_dump_file(self.dump_file_path)
+        header_file_path = MEX_DRAWER_TYPE.get_header_file_path()
+        string_file_path = MEX_DRAWER_TYPE.get_trace_string_file_path()
+        lines = parse_dump_file(self.dump_file_path, header_file_path,
+                                string_file_path)
         self.assertEqual(lines, expected_lines)
 
         # Test where works.  Use dummy header file and string file.  Hexdump is
@@ -445,7 +546,8 @@ class TestDump(unittest.TestCase):
 
         # Test where fails.  No data is found in the IO drawer dump file.
         self._create_dump_file([])
-        lines = parse_dump_file(self.dump_file_path)
+        lines = parse_dump_file(self.dump_file_path, self.header_file_path,
+                                self.string_file_path)
         self.assertEqual(lines, [])
 
         # Test where fails.  IO drawer dump file has unexpected hex dump line
@@ -453,9 +555,12 @@ class TestDump(unittest.TestCase):
         self._create_dump_file([
             '00000000:  DEADBEEF BADC0FFE 42414443 30464645  |........BADC0FFE|'
         ])
-        lines = parse_dump_file(self.dump_file_path)
+        lines = parse_dump_file(self.dump_file_path, self.header_file_path,
+                                self.string_file_path)
         self.assertEqual(lines, [])
 
         # Test where fails.  IO drawer dump file does not exist.
         with self.assertRaises(Exception):
-            lines = parse_dump_file('/does_not_exist/dne/dump')
+            lines = parse_dump_file('/does_not_exist/dne/dump',
+                                    self.header_file_path,
+                                    self.string_file_path)

@@ -2,8 +2,6 @@
 This module contains shared utility functions.
 """
 
-import os
-
 
 def format_timestamp(timestamp: int) -> str:
     """
@@ -24,20 +22,3 @@ def format_timestamp(timestamp: int) -> str:
     mm = (timestamp - (hh*3600)) // 60
     ss = timestamp - (hh*3600) - (mm*60)
     return f'{hh:2d}:{mm:02d}:{ss:02d}'
-
-
-def get_header_file_path() -> str:
-    """
-    Returns the path to the C++ header file that contains ilog and
-    history log definitions.
-    """
-
-    return os.path.join(os.path.dirname(__file__), 'mex_pte.h')
-
-
-def get_trace_string_file_path() -> str:
-    """
-    Returns the path to the file that contains the trace strings.
-    """
-
-    return os.path.join(os.path.dirname(__file__), 'mexStringFile')

@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 
+from io_drawer.drawer_type import MEX_DRAWER_TYPE, NIMITZ_DRAWER_TYPE
 from io_drawer.trace import (TraceString, TraceStringFile, TraceBufferHeader,
                              TraceEntry, TraceBuffer, _format_trace_entry,
                              parse_trace_data)
@@ -178,11 +179,18 @@ class TestTraceStringFile(TestTraceBase):
     """
 
     def test__init__(self):
-		# Test with real string file generated during firmware build
-        file = TraceStringFile()
+        # Test with MEX string file generated during firmware build
+        file = TraceStringFile(MEX_DRAWER_TYPE.get_trace_string_file_path())
         self.assertTrue(os.path.exists(file.string_file_path))
         self.assertEqual(os.path.basename(file.string_file_path),
                          'mexStringFile')
+        self.assertTrue(len(file.trace_strings) > 650)
+
+        # Test with Nimitz string file generated during firmware build
+        file = TraceStringFile(NIMITZ_DRAWER_TYPE.get_trace_string_file_path())
+        self.assertTrue(os.path.exists(file.string_file_path))
+        self.assertEqual(os.path.basename(file.string_file_path),
+                         'nimitzStringFile')
         self.assertTrue(len(file.trace_strings) > 650)
 
         # Test with dummy string file: Standard format
@@ -847,7 +855,7 @@ class TestTrace(TestTraceBase):
         self.assertEqual(lines, expected_lines)
 
     def test_parse_trace_data(self):
-		# Test with real string file generated during firmware build
+        # Test with MEX string file generated during firmware build
         data = memoryview(                      # buffer header
                           b'\x01'               #   ver
                           b'\x20'               #   hdr_len (32)
@@ -871,7 +879,47 @@ class TestTrace(TestTraceBase):
                           b'\xDE\xAD\xBE'       #
                           b'\x00'               #   padding for 4-byte alignment
                           b'\x00\x00\x00\x1C')  #   entry_size (28)
-        lines = parse_trace_data(data)
+        lines = parse_trace_data(data,
+                                 MEX_DRAWER_TYPE.get_trace_string_file_path())
+        expected_lines = [
+            'Component: FANS',
+            'Version: 1',
+            'Size: 60',
+            'Times Wrapped: 254',
+            '',
+            'HH:MM:SS Seq  Line  Entry Data',
+            '-------- ---- ----- ----------',
+            ' 9:51:39 0123   562 No trace string found with hash value 4294967295',
+            '                    00000000     01020304  DEADBE                           .......         '
+        ]
+        self.assertEqual(lines, expected_lines)
+
+        # Test with Nimitz string file generated during firmware build
+        data = memoryview(                      # buffer header
+                          b'\x01'               #   ver
+                          b'\x20'               #   hdr_len (32)
+                          b'\x01'               #   time_flg
+                          b'\x42'               #   endian_flg
+                          b'\x46\x41\x4e\x53'   #   comp (FANS)
+                          b'\x20\x20\x20\x20'   #
+                          b'\x00\x00\x00\x00'   #
+                          b'\x00\x00\x00\x00'   #   rsvd
+                          b'\x00\x00\x00\x3C'   #   size (32 + 28 = 60)
+                          b'\x00\x00\x00\xFE'   #   times_wrap (254)
+                          b'\x00\x00\x00\x3D'   #   next_free
+                                                # entry 1
+                          b'\x8A\xAB'           #   tbh (9:51:39)
+                          b'\x01\x23'           #   tbl
+                          b'\x00\x07'           #   length (7)
+                          b'\x46\x44'           #   tag (TYPE_FIELDBIN)
+                          b'\xFF\xFF\xFF\xFF'   #   hash_value (4294967295)
+                          b'\x00\x00\x02\x32'   #   line (562)
+                          b'\x01\x02\x03\x04'   #   data
+                          b'\xDE\xAD\xBE'       #
+                          b'\x00'               #   padding for 4-byte alignment
+                          b'\x00\x00\x00\x1C')  #   entry_size (28)
+        lines = parse_trace_data(data,
+                                 NIMITZ_DRAWER_TYPE.get_trace_string_file_path())
         expected_lines = [
             'Component: FANS',
             'Version: 1',

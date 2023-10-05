@@ -7,5 +7,6 @@ setup(
     classifiers  = [ "License :: OSI Approved :: Apache Software License" ],
     packages     = find_packages("modules"),
     package_dir  = { "": "modules" },
-    package_data = { "io_drawer": [ "mex_pte.h", "mexStringFile" ] }
+    package_data = { "io_drawer": [ "mex_pte.h", "nimitz_pte.h",
+                                    "mexStringFile", "nimitzStringFile" ] }
 )

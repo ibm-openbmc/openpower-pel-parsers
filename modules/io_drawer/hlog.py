@@ -5,7 +5,6 @@ This module contains functions to parse and format history log data.
 import re
 from collections import namedtuple
 
-from io_drawer.utils import get_header_file_path
 from pel.datastream import DataStream
 from pel.hexdump import hexdump
 
@@ -21,8 +20,8 @@ HistoryLogField = namedtuple('HistoryLogField', ('name', 'size'))
 # the next one.
 #
 # Example:
-#   struct mex_hlog_field mex_hlog_fields[MEX_HLOG_FIELD_COUNT] =
-HLOG_START_RE = re.compile(r'\s*struct\s+mex_hlog_field\s+'
+#   static struct mex_hlog_field mex_hlog_fields[MEX_HLOG_FIELD_COUNT] =
+HLOG_START_RE = re.compile(r'(\s*static\s+)?\s*struct\s+mex_hlog_field\s+'
                             'mex_hlog_fields.*\=\s*\{?\s*')
 
 # Regex for line that defines one field struct in the array.  Trailing comma is
@@ -39,19 +38,12 @@ HLOG_FIELD_RE = re.compile(r'\s*\{\s*([12])\s*\,\s*"([^"]+)"\s*\}\s*\,?\s*')
 HLOG_END_RE = re.compile(r'\s*\}\s*;\s*')
 
 
-def get_hlog_fields(header_file_path: str = None) -> list:
+def get_hlog_fields(header_file_path: str) -> list:
     """
     Returns the list of fields in the history log.
 
-    Parses a C++ header file to obtain the field definitions.
-
-    If the header file path is not specified, it will be found in the
-    standard location.
+    Parses the C++ header file to obtain the field definitions.
     """
-
-    # Find header file path if not specified
-    if not header_file_path:
-        header_file_path = get_header_file_path()
 
     # Build list of fields by parsing C++ header file
     fields = []
@@ -74,16 +66,11 @@ def get_hlog_fields(header_file_path: str = None) -> list:
     return fields
 
 
-def parse_hlog_data(data: memoryview,
-                    header_file_path: str = None) -> list:
+def parse_hlog_data(data: memoryview, header_file_path: str) -> list:
     """
     Parses binary history log data and returns formatted output.
 
-    Parses a C++ header file to obtain the history log field
-    definitions.
-
-    If the header file path is not specified, it will be found in the
-    standard location.
+    Parses the C++ header file to obtain the history log field definitions.
     """
 
     # Add hex dump of all history log data to output

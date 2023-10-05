@@ -3,6 +3,7 @@ import re
 import tempfile
 import unittest
 
+from io_drawer.drawer_type import MEX_DRAWER_TYPE, NIMITZ_DRAWER_TYPE
 from io_drawer.ilog import PTETableEntry, PTETable, parse_ilog_data
 
 
@@ -202,11 +203,17 @@ class TestPTETable(TestILogBase):
     """
 
     def test__init__(self):
-		# Test with real header file generated during firmware build
-        table = PTETable()
+        # Test with MEX header file generated during firmware build
+        table = PTETable(MEX_DRAWER_TYPE.get_header_file_path())
         self.assertTrue(os.path.exists(table.header_file_path))
         self.assertEqual(os.path.basename(table.header_file_path), 'mex_pte.h')
         self.assertTrue(len(table.entries) > 600)
+
+        # Test with Nimitz header file generated during firmware build
+        table = PTETable(NIMITZ_DRAWER_TYPE.get_header_file_path())
+        self.assertTrue(os.path.exists(table.header_file_path))
+        self.assertEqual(os.path.basename(table.header_file_path), 'nimitz_pte.h')
+        self.assertTrue(len(table.entries) > 590)
 
         # Test with dummy header file: Standard C++ format
         self._create_header_file([
@@ -298,11 +305,17 @@ class TestPTETable(TestILogBase):
         self.assertEqual(len(table.entries), 4)
 
     def test__parse_header_file(self):
-		# Test with real header file generated during firmware build
-        table = PTETable()
+        # Test with MEX header file generated during firmware build
+        table = PTETable(MEX_DRAWER_TYPE.get_header_file_path())
         table.entries = []
         table._parse_header_file()
         self.assertTrue(len(table.entries) > 600)
+
+        # Test with Nimitz header file generated during firmware build
+        table = PTETable(NIMITZ_DRAWER_TYPE.get_header_file_path())
+        table.entries = []
+        table._parse_header_file()
+        self.assertTrue(len(table.entries) > 590)
 
         # Test with dummy header file: Standard C++ format
         self._create_header_file([
@@ -416,7 +429,7 @@ class TestILog(TestILogBase):
     """
 
     def test_parse_ilog_data(self):
-		# Test with real header file generated during firmware build
+        # Test with MEX header file generated during firmware build
         data = memoryview(                      # ILOG entry 1
                           b'\x8A\xDF'           #   timestamp
                           b'\x0F\x19'           #   seq_num
@@ -425,7 +438,25 @@ class TestILog(TestILogBase):
                           b'\x8D\x47'           #   timestamp
                           b'\x10\x24'           #   seq_num
                           b'\x01\x04\x00\x00')  #   pte (01040000)
-        lines = parse_ilog_data(data)
+        lines = parse_ilog_data(data, MEX_DRAWER_TYPE.get_header_file_path())
+        expected_lines = [
+            'hh:mm:ss seq  pppppppp description',
+            '-------- ---- -------- ------------------------------------',
+            ' 9:52:31 0F19 010000DE Begin power on, node type = 0xDE',
+            '10:02:47 1024 01040000 Power on complete',
+        ]
+        self.assertEqual(lines, expected_lines)
+
+        # Test with Nimitz header file generated during firmware build
+        data = memoryview(                      # ILOG entry 1
+                          b'\x8A\xDF'           #   timestamp
+                          b'\x0F\x19'           #   seq_num
+                          b'\x01\x00\x00\xDE'   #   pte (010000**)
+                                                # ILOG entry 2
+                          b'\x8D\x47'           #   timestamp
+                          b'\x10\x24'           #   seq_num
+                          b'\x01\x04\x00\x00')  #   pte (01040000)
+        lines = parse_ilog_data(data, NIMITZ_DRAWER_TYPE.get_header_file_path())
         expected_lines = [
             'hh:mm:ss seq  pppppppp description',
             '-------- ---- -------- ------------------------------------',

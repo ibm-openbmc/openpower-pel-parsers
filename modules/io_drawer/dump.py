@@ -18,6 +18,7 @@ This module can also be run standalone as a script.
 import argparse
 import sys
 
+from io_drawer.drawer_type import DrawerType, DRAWER_TYPES
 from io_drawer.ilog import parse_ilog_data
 from io_drawer.trace import parse_trace_data, TraceBufferHeader
 import pel.hexdump as hexdump
@@ -45,16 +46,35 @@ DIVIDER_LINE = \
     '-------------------------------------------------------------------------'
 
 
-def _format_ilog_data(data: memoryview, lines: list, header_file: str = None):
+def _get_drawer_type_names() -> list:
+    """
+    Returns a list of valid drawer type names.
+    """
+
+    return [drawer_type.name for drawer_type in DRAWER_TYPES]
+
+
+def _get_drawer_type(name: str) -> DrawerType:
+    """
+    Returns the drawer type with the specified name.
+
+    Returns None if no matching drawer type is found.
+    """
+
+    for drawer_type in DRAWER_TYPES:
+        if drawer_type.name == name:
+            return drawer_type
+
+    return None
+
+
+def _format_ilog_data(data: memoryview, lines: list, header_file: str):
     """
     Parses and formats ILOG/PTE data.
 
     Stores the output lines in the specified list parameter.
 
     Parses the specified C++ header file to obtain the PTE table.
-
-    If the header file is not specified, it will be found in the standard
-    location.
     """
 
     lines.append('ILOG')
@@ -65,16 +85,13 @@ def _format_ilog_data(data: memoryview, lines: list, header_file: str = None):
     lines.append('')
 
 
-def _format_trace_data(data: memoryview, lines: list, string_file: str = None):
+def _format_trace_data(data: memoryview, lines: list, string_file: str):
     """
     Parses and formats trace data.
 
     Stores the output lines in the specified list parameter.
 
     Parses the specified trace string file to obtain the trace strings.
-
-    If the string file is not specified, it will be found in the standard
-    location.
     """
 
     lines.append('Trace')
@@ -85,8 +102,8 @@ def _format_trace_data(data: memoryview, lines: list, string_file: str = None):
     lines.append('')
 
 
-def parse_dump_data(data: memoryview, header_file: str = None,
-                    string_file: str = None) -> list:
+def parse_dump_data(data: memoryview, header_file: str,
+                    string_file: str) -> list:
     """
     Parses and formats IO drawer dump data.
 
@@ -94,9 +111,6 @@ def parse_dump_data(data: memoryview, header_file: str = None,
 
     Parses the specified C++ header file to obtain the PTE table.  Parses the
     specified trace string file to obtain the trace strings.
-
-    If the header file or string file is not specified, they will be found in
-    the standard location.
     """
 
     lines = []
@@ -142,8 +156,7 @@ def parse_dump_data(data: memoryview, header_file: str = None,
     return lines
 
 
-def parse_dump_file(dump_file: str = None, header_file: str = None,
-                    string_file: str = None) -> list:
+def parse_dump_file(dump_file: str, header_file: str, string_file: str) -> list:
     """
     Parses and formats IO drawer dump data in the specified file.
 
@@ -151,9 +164,6 @@ def parse_dump_file(dump_file: str = None, header_file: str = None,
 
     Parses the specified C++ header file to obtain the PTE table.  Parses the
     specified trace string file to obtain the trace strings.
-
-    If the header file or string file is not specified, they will be found in
-    the standard location.
     """
 
     # Parse the IO drawer dump file as a hex dump to obtain the data bytes
@@ -174,6 +184,43 @@ def parse_dump_file(dump_file: str = None, header_file: str = None,
     return lines
 
 
+def parse_args() -> tuple:
+    """
+    Parses the command line arguments.
+
+    Returns a tuple containing the dump file, header file, and string file.
+    """
+
+    parser = argparse.ArgumentParser(description='IO drawer dump parser/formatter.')
+    parser.add_argument('dump_file',
+                        help='IO drawer dump file')
+    parser.add_argument('-t', '--drawer-type', required=True,
+                        dest='drawer_type_name',
+                        choices=_get_drawer_type_names(),
+                        help='Drawer type that produced the dump')
+    parser.add_argument('-d', '--header-file',
+                        help='Generated header file containing the PTE table')
+    parser.add_argument('-s', '--string-file',
+                        help='File containing the trace strings')
+    args = parser.parse_args()
+    dump_file = args.dump_file
+    drawer_type_name = args.drawer_type_name
+    header_file = args.header_file
+    string_file = args.string_file
+
+    drawer_type = _get_drawer_type(drawer_type_name)
+    if not drawer_type:
+        parser.error(f'Invalid drawer type specified: {drawer_type_name}')
+
+    if not header_file:
+        header_file = drawer_type.get_header_file_path()
+
+    if not string_file:
+        string_file = drawer_type.get_trace_string_file_path()
+
+    return (dump_file, header_file, string_file)
+
+
 def main():
     """
     Parses the command line parameters and then parses/formats the IO drawer
@@ -183,17 +230,7 @@ def main():
     """
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='IO drawer dump parser/formatter.')
-    parser.add_argument('dump_file',
-                        help='IO drawer dump file')
-    parser.add_argument('-d', '--header-file',
-                        help='Generated header file containing the PTE table')
-    parser.add_argument('-s', '--string-file',
-                        help='File containing the trace strings')
-    args = parser.parse_args()
-    dump_file = args.dump_file
-    header_file = args.header_file
-    string_file = args.string_file
+    (dump_file, header_file, string_file) = parse_args()
 
     rc = 0
     try:
