@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pel.peltool.parse_user_data import ParseUserData
 from pel.peltool.comp_id import getDisplayCompID
 from pel.peltool.config import Config
+from pel.hexdump import hexdump
 import json
 
 
@@ -41,7 +42,14 @@ class ExtUserData:
 
         value = parser.parse(config)
 
-        j = json.loads(value)
+        try:
+            j = json.loads(value)
+        except json.decoder.JSONDecodeError:
+            # This should have been valid JSON but if it isn't
+            # then hexdump it.
+            mv = memoryview(value.encode('utf-8'))
+            j = json.loads(json.dumps(hexdump(mv)))
+
         if not isinstance(j, dict):
             out['Data'] = j
         else:
