@@ -179,6 +179,28 @@ def buildOutput(sections: list, out: OrderedDict):
             counts[name][1] = modifier + 1
 
 
+def prettyPrint(Mdata: str, desiredSpace: int = 34) -> str:
+    # After index of these 2 characters ":  need to add desired space.
+    CHARACTER_SPACE = 2
+    lines = Mdata.split("\n")
+    for i in range(len(lines)):
+        line = lines[i]
+        if "\":" in line and "{" not in line:
+            ind = line.index("\":")
+            spaces = (desiredSpace - ind) * " "    # Calculating spaces needed to add to get the desired spacing.
+            ind += CHARACTER_SPACE
+            lines[i] = line[:ind] + spaces + line[ind:]
+    """
+    Part of input
+        "Section Version": 1,
+        "Sub-section type": 0,
+    Part of output
+        "Section Version":           1,
+        "Sub-section type":          0,
+    """
+    return '\n'.join(lines)
+
+
 def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
     out = OrderedDict()
 
@@ -217,7 +239,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
 
     buildOutput(section_jsons, out)
 
-    return eid, json.dumps(out, indent=4)
+    return eid, prettyPrint(json.dumps(out, indent=4))
 
 
 def parseAndWriteOutput(file: str, output_dir: str, config: Config,
