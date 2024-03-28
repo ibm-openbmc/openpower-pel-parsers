@@ -179,6 +179,23 @@ def buildOutput(sections: list, out: OrderedDict):
             counts[name][1] = modifier + 1
 
 
+def prettyPrint(Mdata: OrderedDict) -> str:
+    """
+    Formats the given ordered dictionary into a readable string.
+    """
+    result = "{\n"
+    for key, value in Mdata.items():
+        result += f'"{key}": ' + "{\n"
+        for inner_key, inner_value in value.items():
+            if ((isinstance(inner_value, int)) or (isinstance(inner_value, str))):
+                result += f'    "{inner_key}":{" "*(25-len(inner_key))}"{inner_value}",\n'
+            else:
+                result += f'    "{inner_key}":{json.dumps(inner_value,indent=8)},\n'
+        result = result.rstrip(",\n") + "\n},\n"
+    result = result.rstrip(",\n") + "\n}"
+    return result
+
+
 def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
     out = OrderedDict()
 
@@ -217,7 +234,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
 
     buildOutput(section_jsons, out)
 
-    return eid, json.dumps(out, indent=4)
+    return eid, prettyPrint(out)
 
 
 def parseAndWriteOutput(file: str, output_dir: str, config: Config,
