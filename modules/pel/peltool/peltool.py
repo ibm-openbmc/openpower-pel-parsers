@@ -212,7 +212,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
             return "", ""
 
     eid = ph.lEID
-    if (eid[0:2] == "0x"):
+    if eid[0:2] == "0x" :
         eid = eid[2:]
 
     ret, uh = generateUH(stream, ph.creatorID, out)
@@ -267,7 +267,83 @@ def parseAndWriteOutput(file: str, output_dir: str, config: Config,
             print(f"No PEL parsed for {file}: {e}")
 
 
+def parsePELSummary(stream: DataStream, config: Config):
+    """
+    Parses and summarizes data from a PEL stream.
+    Returns: Event ID (eid) and summary of PEL data.
+            If no PEL is parsed or an error occurs, empty strings are returned.
+    """
+    out = OrderedDict()
+    ret, ph = generatePH(stream, out)
+    if ret is False:
+        return "", ""
+    eid = ph.pLID
+    ret, uh = generateUH(stream, ph.creatorID, out)
+    if ret is False:
+        return "", ""
+    if not uh.isServiceable():
+        return "", ""
+    
+    summary = OrderedDict()
+    for _ in range(2, ph.sectionCount):
+        sectionID, sectionLen, versionID, subType, componentID = parseHeader(stream)
+        section_json = OrderedDict()
+        sectionFun(stream, section_json, sectionID, sectionLen,
+                   versionID, subType, componentID, ph.creatorID, config)
+        if sectionID == SectionID.primarySRC.value:
+            summary["SRC"] = section_json["Primary SRC"]["Reference Code"]
+            if "Error Details" in section_json["Primary SRC"] :
+                summary["Message"] = section_json["Primary SRC"]["Error Details"]["Message"]
+            break
+    summary["PLID"] = ph.pLID
+    summary["CreatorID"] = out["Private Header"]["Creator Subsystem"]
+    summary["Subsystem"] = out["User Header"]["Subsystem"]
+    summary["Commit Time"] = ph.commitTime
+    summary["Sev"] = out["User Header"]["Event Severity"]
+    summary["CompID"] = out["Private Header"]["Created by"]
+    return eid, summary
+
+def extractAndSummarizePEL(file: str, config: Config):
+    """
+    Extracts and summarizes data from a PEL file.
+    Returns: Event ID (eid) and summary extracted from the PEL.
+            If no PEL is parsed, empty strings are returned.
+    """
+    with open(file, 'rb') as fd:
+        data = fd.read()
+        stream = DataStream(data, byte_order='big', is_signed=False)
+        try:
+            eid, summary = parsePELSummary(stream, config)
+            if eid :
+                return eid, summary
+        except Exception as e:
+            print(f"Exception: No PEL parsed for {file}: {e}")
+    return "", ""
+
+def listOption(path: str, config: Config, extension: str, rev: bool =False):
+    file_list = []
+    root = ""
+    for root, _, files in os.walk(path):
+        for file in files:
+            if extension and extension != os.path.splitext(file)[1]:
+                continue
+            file_list.append(file)  ## create list of file names
+        # Only process top level directory
+        break
+    file_list.sort(reverse=rev) 
+    final_summary = {}
+    for file in file_list:
+        eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
+        if eid :
+            final_summary[eid] = summary
+    print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
+
+
 def main():
+    inBMC=False
+    BMCPELsPath="/var/lib/phosphor-logging/extensions/pels/logs/"
+    if os.path.isdir(BMCPELsPath):
+        inBMC=True
     parser = argparse.ArgumentParser(description="PELTools")
 
     parser.add_argument('-f', '--file', dest='file',
@@ -289,6 +365,14 @@ def main():
                         help='Used with -d, only look for files with this extension (e.g. ".pel")')
     parser.add_argument('-x', '--delete', dest='delete', action='store_true',
                         help='Delete original file after parsing')
+    if inBMC:
+        parser.add_argument('-l', '--list',
+                            help='List PELs',
+                            action='store_true')
+    else:
+        parser.add_argument('-l', '--list',
+                            help='List PELs',
+                            dest='list')
     args = parser.parse_args()
 
     config = Config()
@@ -325,6 +409,15 @@ def main():
             # Only process top level directory
             break
 
+        sys.exit(0)
+
+    if args.list:
+        if inBMC:
+            listOption(BMCPELsPath, config, args.extension)
+        else:
+            if not os.path.isdir(args.list):
+                sys.exit(f"{args.list} is not a valid directory")
+            listOption(args.list, config, args.extension)
         sys.exit(0)
 
     with open(args.file, 'rb') as fd:
