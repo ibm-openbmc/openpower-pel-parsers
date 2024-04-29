@@ -2,6 +2,11 @@ from enum import Enum, unique
 
 
 @unique
+class SeverityValues(Enum):
+    critSysTermSeverity = 0x51
+
+
+@unique
 class TransmissionState(Enum):
     newPEL = 0
     badPEL = 1

@@ -7,3 +7,4 @@ class Config:
         self.allow_plugins = True
         self.serviceable_only = False
         self.non_serviceable_only = False
+        self.critSysTerm = False

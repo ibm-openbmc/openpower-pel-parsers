@@ -10,7 +10,7 @@ from collections import OrderedDict
 from pel.peltool.private_header import PrivateHeader
 from pel.peltool.user_header import UserHeader
 from pel.peltool.src import SRC
-from pel.peltool.pel_types import SectionID
+from pel.peltool.pel_types import SectionID, SeverityValues
 from pel.peltool.extend_user_header import ExtendedUserHeader
 from pel.peltool.failing_mtms import FailingMTMS
 from pel.peltool.user_data import UserData
@@ -227,6 +227,9 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
 
     if config.non_serviceable_only and uh.isServiceable():
         return "", ""
+    
+    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
+        return "", ""
 
     section_jsons = []
     for _ in range(2, ph.sectionCount):
@@ -283,7 +286,9 @@ def parsePELSummary(stream: DataStream, config: Config):
         return "", ""
     if not uh.isServiceable():
         return "", ""
-    
+    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
+        return "", ""
+
     summary = OrderedDict()
     for _ in range(2, ph.sectionCount):
         sectionID, sectionLen, versionID, subType, componentID = parseHeader(stream)
@@ -365,6 +370,8 @@ def main():
                         help='Used with -d, only look for files with this extension (e.g. ".pel")')
     parser.add_argument('-x', '--delete', dest='delete', action='store_true',
                         help='Delete original file after parsing')
+    parser.add_argument('-t', '--termination', dest='critSysTerm',
+                        action='store_true', help='List only critical system terminating PELs')
     if inBMC:
         parser.add_argument('-l', '--list',
                             help='List PELs',
@@ -385,6 +392,9 @@ def main():
 
     if args.non_serviceable:
         config.non_serviceable_only = True
+
+    if args.critSysTerm:
+        config.critSysTerm = True
 
     if args.directory:
         if not os.path.isdir(args.directory):
