@@ -17,7 +17,7 @@ from pel.peltool.user_data import UserData
 from pel.peltool.ext_user_data import ExtUserData
 from pel.peltool.default import Default
 from pel.peltool.imp_partition import ImpactedPartition
-from pel.peltool.pel_values import sectionNames
+from pel.peltool.pel_values import sectionNames, severityValues
 from pel.peltool.config import Config
 
 
@@ -227,6 +227,9 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
 
     if config.non_serviceable_only and uh.isServiceable():
         return "", ""
+    
+    if config.critSysTerm and uh.eventSeverity != int(config.critSysTerm):
+        return "", ""
 
     section_jsons = []
     for _ in range(2, ph.sectionCount):
@@ -283,7 +286,9 @@ def parsePELSummary(stream: DataStream, config: Config):
         return "", ""
     if not uh.isServiceable():
         return "", ""
-    
+    if config.critSysTerm and uh.eventSeverity != int(config.critSysTerm):
+        return "", ""
+
     summary = OrderedDict()
     for _ in range(2, ph.sectionCount):
         sectionID, sectionLen, versionID, subType, componentID = parseHeader(stream)
@@ -344,6 +349,7 @@ def main():
     BMCPELsPath="/var/lib/phosphor-logging/extensions/pels/logs/"
     if os.path.isdir(BMCPELsPath):
         inBMC=True
+    critSysTermSeverity = "81"
     parser = argparse.ArgumentParser(description="PELTools")
 
     parser.add_argument('-f', '--file', dest='file',
@@ -365,6 +371,8 @@ def main():
                         help='Used with -d, only look for files with this extension (e.g. ".pel")')
     parser.add_argument('-x', '--delete', dest='delete', action='store_true',
                         help='Delete original file after parsing')
+    parser.add_argument('-t', '--termination', nargs='?', const=critSysTermSeverity,
+                        default=None, help='List only critical system terminating PELs')
     if inBMC:
         parser.add_argument('-l', '--list',
                             help='List PELs',
@@ -385,6 +393,12 @@ def main():
 
     if args.non_serviceable:
         config.non_serviceable_only = True
+
+    if args.termination:
+        if int(args.termination) not in severityValues:
+            print(json.dumps(severityValues, indent=4))
+            sys.exit(f"{args.termination} is not a valid severity value, choose from above")
+        config.critSysTerm = args.termination
 
     if args.directory:
         if not os.path.isdir(args.directory):
