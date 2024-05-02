@@ -270,6 +270,36 @@ def parseAndWriteOutput(file: str, output_dir: str, config: Config,
             print(f"No PEL parsed for {file}: {e}")
 
 
+def parsePelFromID(path: str, pelID: str, config: Config) -> None:
+    """
+    Search the PEL id in the given path and prints the details.
+    Returns: None
+    """
+    pelID=pelID.upper()
+    if pelID.startswith("0X"):
+        pelID = pelID[2:]
+    foundID = False
+    root = ""
+    for root, _, files in os.walk(path):
+        for file in files:
+            if pelID not in file:
+                continue
+            try:
+                with open(os.path.join(root, file), 'rb') as fd:
+                    data = fd.read()
+                    stream = DataStream(data, byte_order='big', is_signed=False)
+                    _, json_string = parsePEL(stream, config, False)
+                    print(json_string)
+                    foundID = True
+                    break
+            except Exception as e:
+                print(f"Exception: Could not read PEL file {file}: {e}")
+        # Only process top level directory
+        break
+    if not foundID:
+        print("PEL not found")
+
+
 def parsePELSummary(stream: DataStream, config: Config):
     """
     Parses and summarizes data from a PEL stream.
@@ -345,10 +375,8 @@ def listOption(path: str, config: Config, extension: str, rev: bool =False):
 
 
 def main():
-    inBMC=False
-    BMCPELsPath="/var/lib/phosphor-logging/extensions/pels/logs/"
-    if os.path.isdir(BMCPELsPath):
-        inBMC=True
+    PELsPath = "/var/lib/phosphor-logging/extensions/pels/logs/"
+    inBMC = os.path.isdir(PELsPath)
     parser = argparse.ArgumentParser(description="PELTools")
 
     parser.add_argument('-f', '--file', dest='file',
@@ -359,7 +387,7 @@ def main():
     parser.add_argument('-n', '--non-serviceable',
                         help='Only parse non-serviceable (info/recovered) PELs',
                         action='store_true')
-    parser.add_argument('-p', '--no-plugins', dest='skip_plugins',
+    parser.add_argument('-P', '--no-plugins', dest='skip_plugins',
                         action='store_true', help='Skip loading plugins')
     parser.add_argument('-d', '--directory', dest='directory',
                         help='Process all files in a directory and save as <filename>.json.'
@@ -372,14 +400,14 @@ def main():
                         help='Delete original file after parsing')
     parser.add_argument('-t', '--termination', dest='critSysTerm',
                         action='store_true', help='List only critical system terminating PELs')
-    if inBMC:
-        parser.add_argument('-l', '--list',
-                            help='List PELs',
-                            action='store_true')
-    else:
-        parser.add_argument('-l', '--list',
-                            help='List PELs',
-                            dest='list')
+    parser.add_argument('-i', '--id',
+                        dest='pelID', help='Display a PEL based on its ID')
+    parser.add_argument('-l', '--list',
+                        action='store_true', help='List PELs')
+    if not inBMC:
+        parser.add_argument('-p', '--path',
+                        dest='path', help='Specify path to PELs')
+
     args = parser.parse_args()
 
     config = Config()
@@ -421,13 +449,20 @@ def main():
 
         sys.exit(0)
 
+    if not inBMC:
+        if not args.file:
+            if not args.path:
+                sys.exit("Outside the BMC environment, please provide the path to the PELs using the -p option.")
+            if not os.path.isdir(args.path):
+                sys.exit(f"{args.path} is not a valid directory")
+            PELsPath = args.path
+
+    if args.pelID:
+        parsePelFromID(PELsPath, args.pelID, config)
+        sys.exit(0)
+
     if args.list:
-        if inBMC:
-            listOption(BMCPELsPath, config, args.extension)
-        else:
-            if not os.path.isdir(args.list):
-                sys.exit(f"{args.list} is not a valid directory")
-            listOption(args.list, config, args.extension)
+        listOption(PELsPath, config, args.extension)
         sys.exit(0)
 
     with open(args.file, 'rb') as fd:
