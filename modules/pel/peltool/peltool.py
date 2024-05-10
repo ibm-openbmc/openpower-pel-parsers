@@ -355,7 +355,11 @@ def extractAndSummarizePEL(file: str, config: Config):
             print(f"Exception: No PEL parsed for {file}: {e}")
     return "", ""
 
-def listOption(path: str, config: Config, extension: str, rev: bool =False):
+def getFileList(path: str, extension: str, rev: bool = False):
+    """
+    Reads the passed folder path and creates a list of file names in the top level
+    Returns: list of file name
+    """
     file_list = []
     root = ""
     for root, _, files in os.walk(path):
@@ -365,13 +369,34 @@ def listOption(path: str, config: Config, extension: str, rev: bool =False):
             file_list.append(file)  ## create list of file names
         # Only process top level directory
         break
-    file_list.sort(reverse=rev) 
+    file_list.sort(reverse=rev)
+    return root, file_list
+
+def listOption(path: str, config: Config, extension: str, rev: bool = False):
+    root, file_list = getFileList(path, extension, rev)
     final_summary = {}
     for file in file_list:
         eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
         if eid :
             final_summary[eid] = summary
     print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
+
+def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = False):
+    config.serviceable_only = True
+    root, file_list = getFileList(path, extension, rev)
+    allPELsData = "[ \n"
+    for file in file_list:
+        with open(os.path.join(root, file), 'rb') as fd:
+            data = fd.read()
+            try:
+                stream = DataStream(data, byte_order='big', is_signed=False)
+                _, json_string = parsePEL(stream, config, False)
+                if json_string:
+                    allPELsData = allPELsData + json_string + ",\n"
+            except Exception as e:
+                print(f"Exception: No PEL parsed for {file}: {e}")
+    allPELsData = allPELsData[:-2] + "\n]"
+    print(allPELsData)
 
 
 def main():
@@ -404,6 +429,8 @@ def main():
                         dest='pelID', help='Display a PEL based on its ID')
     parser.add_argument('-l', '--list',
                         action='store_true', help='List PELs')
+    parser.add_argument('-a', '--all-pels', dest='all',
+                        action='store_true', help='Display all PELs')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -463,6 +490,10 @@ def main():
 
     if args.list:
         listOption(PELsPath, config, args.extension)
+        sys.exit(0)
+
+    if args.all:
+        extractAllPELsData(PELsPath, config, args.extension)
         sys.exit(0)
 
     with open(args.file, 'rb') as fd:
