@@ -382,6 +382,11 @@ def listOption(path: str, config: Config, extension: str, rev: bool = False):
     print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
 def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = False):
+    """
+    Extracts and display serviceable PELs data from files in the specified directory.
+    Returns: None.
+    Prints a JSON-formatted string containing PEL data from all valid files.
+    """
     config.serviceable_only = True
     root, file_list = getFileList(path, extension, rev)
     allPELsData = "[ \n"
@@ -398,6 +403,38 @@ def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = Fa
     allPELsData = allPELsData[:-2] + "\n]"
     print(allPELsData)
 
+def printPELCount(path: str, config: Config, extension: str):
+    """
+    Reads and display serviceable PEL count from the specified directory.
+    Returns: None
+    Prints a JSON-formatted string containing count of valid PELs in specified directory.
+    """
+    count = 0
+    root, file_list = getFileList(path, extension)
+    for file in file_list:
+        with open(os.path.join(root, file), 'rb') as fd:
+            data = fd.read()
+            stream = DataStream(data, byte_order='big', is_signed=False)
+            try:
+                out = OrderedDict()
+                ret, ph = generatePH(stream, out)
+                if not ret:
+                    continue
+                ret, uh = generateUH(stream, ph.creatorID, out)
+                if not ret:
+                    continue
+                if not uh.isServiceable():  ## counting only the serviceable PELs
+                    continue
+                if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
+                    continue
+                ## TODO: include condition for hidden pels
+                ## TODO: include condition for includeInfo pels
+                ## TODO: include condition for scrubFile pels
+                count+= 1
+            except Exception as e:
+                print(f"Exception: No PEL parsed for {file}: {e}")
+    print("{\n    \"Number of PELs found\": "+str(count)+"\n}")
+
 
 def main():
     PELsPath = "/var/lib/phosphor-logging/extensions/pels/logs/"
@@ -409,7 +446,7 @@ def main():
     parser.add_argument('-s', '--serviceable',
                         help='Only parse serviceable (not info/recovered) PELs',
                         action='store_true')
-    parser.add_argument('-n', '--non-serviceable',
+    parser.add_argument('-N', '--non-serviceable',
                         help='Only parse non-serviceable (info/recovered) PELs',
                         action='store_true')
     parser.add_argument('-P', '--no-plugins', dest='skip_plugins',
@@ -431,6 +468,8 @@ def main():
                         action='store_true', help='List PELs')
     parser.add_argument('-a', '--all-pels', dest='all',
                         action='store_true', help='Display all PELs')
+    parser.add_argument('-n', '--show-pel-count', dest='show_pel_count',
+                        action='store_true', help='Show number of PELs')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -490,6 +529,10 @@ def main():
 
     if args.list:
         listOption(PELsPath, config, args.extension)
+        sys.exit(0)
+    
+    if args.show_pel_count:
+        printPELCount(PELsPath, config, args.extension)
         sys.exit(0)
 
     if args.all:
