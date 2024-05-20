@@ -470,6 +470,8 @@ def main():
                         action='store_true', help='Display all PELs')
     parser.add_argument('-n', '--show-pel-count', dest='show_pel_count',
                         action='store_true', help='Show number of PELs')
+    parser.add_argument('-r', '--reverse',
+                        action='store_true', help='Reverse order of output')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -528,7 +530,7 @@ def main():
         sys.exit(0)
 
     if args.list:
-        listOption(PELsPath, config, args.extension)
+        listOption(PELsPath, config, args.extension, args.reverse)
         sys.exit(0)
     
     if args.show_pel_count:
@@ -536,7 +538,7 @@ def main():
         sys.exit(0)
 
     if args.all:
-        extractAllPELsData(PELsPath, config, args.extension)
+        extractAllPELsData(PELsPath, config, args.extension, args.reverse)
         sys.exit(0)
 
     with open(args.file, 'rb') as fd:
