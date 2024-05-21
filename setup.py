@@ -8,5 +8,6 @@ setup(
     packages     = find_packages("modules"),
     package_dir  = { "": "modules" },
     package_data = { "io_drawer": [ "mex_pte.h", "nimitz_pte.h",
-                                    "mexStringFile", "nimitzStringFile" ] }
+                                    "mexStringFile", "nimitzStringFile" ] },
+    scripts      = ['modules/pel/peltool/peltool.py']
 )
