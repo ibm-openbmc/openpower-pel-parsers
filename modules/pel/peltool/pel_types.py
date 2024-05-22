@@ -7,6 +7,11 @@ class SeverityValues(Enum):
 
 
 @unique
+class ActionFlagsValues(Enum):
+    hiddenActionFlag = 0x4000
+
+
+@unique
 class TransmissionState(Enum):
     newPEL = 0
     badPEL = 1

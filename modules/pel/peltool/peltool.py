@@ -10,7 +10,7 @@ from collections import OrderedDict
 from pel.peltool.private_header import PrivateHeader
 from pel.peltool.user_header import UserHeader
 from pel.peltool.src import SRC
-from pel.peltool.pel_types import SectionID, SeverityValues
+from pel.peltool.pel_types import SectionID, SeverityValues, ActionFlagsValues
 from pel.peltool.extend_user_header import ExtendedUserHeader
 from pel.peltool.failing_mtms import FailingMTMS
 from pel.peltool.user_data import UserData
@@ -230,6 +230,9 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
     
     if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
         return "", ""
+    
+    if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
+        return "", ""
 
     section_jsons = []
     for _ in range(2, ph.sectionCount):
@@ -317,6 +320,8 @@ def parsePELSummary(stream: DataStream, config: Config):
     if not uh.isServiceable():
         return "", ""
     if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
+        return "", ""
+    if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
         return "", ""
 
     summary = OrderedDict()
@@ -427,7 +432,8 @@ def printPELCount(path: str, config: Config, extension: str):
                     continue
                 if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
                     continue
-                ## TODO: include condition for hidden pels
+                if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
+                    continue
                 ## TODO: include condition for includeInfo pels
                 ## TODO: include condition for scrubFile pels
                 count+= 1
@@ -472,6 +478,8 @@ def main():
                         action='store_true', help='Show number of PELs')
     parser.add_argument('-r', '--reverse',
                         action='store_true', help='Reverse order of output')
+    parser.add_argument('-H', '--hidden',
+                        action='store_true', help='Include hidden PELs')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -491,6 +499,9 @@ def main():
 
     if args.critSysTerm:
         config.critSysTerm = True
+
+    if args.hidden:
+        config.hidden = True
 
     if args.directory:
         if not os.path.isdir(args.directory):
