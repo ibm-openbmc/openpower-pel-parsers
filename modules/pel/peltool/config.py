@@ -8,3 +8,4 @@ class Config:
         self.serviceable_only = False
         self.non_serviceable_only = False
         self.critSysTerm = False
+        self.hidden = False
