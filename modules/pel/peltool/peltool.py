@@ -273,14 +273,32 @@ def parseAndWriteOutput(file: str, output_dir: str, config: Config,
             print(f"No PEL parsed for {file}: {e}")
 
 
+def deleteAllPELs(path: str) -> None:
+    """
+    Delete all files in given path
+    Returns: None
+    """
+    root = ""
+    for root, _, files in os.walk(path):
+        for file in files:
+            if not os.path.isfile(os.path.join(root, file)):
+                continue
+            os.remove(os.path.join(root, file))
+        # Only process top level directory
+        break
+
+
 def process_pelID(pelID: str) -> str:
     """
     Processes a string by converting it to uppercase and removing the "0X" prefix if present.
     Returns: str: Processed pelID string.
     """
+    PEL_ID_LENGTH = 8
     pelID = pelID.upper()
     if pelID.startswith("0X"):
         pelID = pelID[2:]
+    if len(pelID) != PEL_ID_LENGTH:
+        sys.exit("Invalid length of PEL ID passed")
     return pelID
 
 def deletePELFromPELId(path: str, pelID: str) -> None:
@@ -543,6 +561,8 @@ def main():
                         action='store_true', help='Include hidden PELs')
     parser.add_argument('-d', '--del',
                         dest='IDToDelete', help='Delete a PEL based on its ID')
+    parser.add_argument('-D', '--delete-all', dest='deleteAll',
+                        action='store_true', help='Delete all PELs')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -614,6 +634,10 @@ def main():
 
     if args.IDToDelete:
         deletePELFromPELId(PELsPath, args.IDToDelete)
+        sys.exit(0)
+
+    if args.deleteAll:
+        deleteAllPELs(PELsPath)
         sys.exit(0)
 
     with open(args.file, 'rb') as fd:
