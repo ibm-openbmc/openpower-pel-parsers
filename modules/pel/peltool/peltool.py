@@ -389,7 +389,7 @@ def parsePELSummary(stream: DataStream, config: Config):
     ret, ph = generatePH(stream, out)
     if ret is False:
         return "", ""
-    eid = ph.pLID
+    eid = ph.lEID
     ret, uh = generateUH(stream, ph.creatorID, out)
     if ret is False:
         return "", ""
