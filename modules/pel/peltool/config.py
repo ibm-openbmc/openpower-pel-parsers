@@ -9,3 +9,4 @@ class Config:
         self.non_serviceable_only = False
         self.critSysTerm = False
         self.hidden = False
+        self.severities = []
