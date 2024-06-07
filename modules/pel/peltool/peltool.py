@@ -531,7 +531,7 @@ def main():
     parser.add_argument('-N', '--non-serviceable',
                         help='Only parse non-serviceable (info/recovered) PELs',
                         action='store_true')
-    parser.add_argument('-P', '--no-plugins', dest='skip_plugins',
+    parser.add_argument('-P', '--skip-parser-plugins', dest='skip_plugins',
                         action='store_true', help='Skip loading plugins')
     parser.add_argument('-j', '--json',
                         help='Process all files in a directory and save as <filename>.json.'
@@ -541,7 +541,7 @@ def main():
                         help='Directory to write output files when processing a directory')
     parser.add_argument('-e', '--extension', dest='extension',
                         help='Used with -d, only look for files with this extension (e.g. ".pel")')
-    parser.add_argument('-x', '--delete', dest='delete', action='store_true',
+    parser.add_argument('-c', '--clean', dest='clean', action='store_true',
                         help='Delete original file after parsing')
     parser.add_argument('-t', '--termination', dest='critSysTerm',
                         action='store_true', help='List only critical system terminating PELs')
@@ -559,7 +559,7 @@ def main():
                         action='store_true', help='Reverse order of output')
     parser.add_argument('-H', '--hidden',
                         action='store_true', help='Include hidden PELs')
-    parser.add_argument('-d', '--del',
+    parser.add_argument('-d', '--delete',
                         dest='IDToDelete', help='Delete a PEL based on its ID')
     parser.add_argument('-D', '--delete-all', dest='deleteAll',
                         action='store_true', help='Delete all PELs')
@@ -607,7 +607,7 @@ def main():
                     continue
                 parseAndWriteOutput(os.path.join(
                     root, file), output_dir, config,
-                    args.delete)
+                    args.clean)
             # Only process top level directory
             break
         sys.exit(0)
@@ -647,7 +647,7 @@ def main():
         _, json_string = parsePEL(stream, config, True)
         print(json_string)
 
-        if args.delete:
+        if args.clean:
             os.remove(args.file)
 
 
