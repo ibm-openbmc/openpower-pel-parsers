@@ -540,7 +540,7 @@ def main():
     parser.add_argument('-o', '--output-dir', dest='output_dir',
                         help='Directory to write output files when processing a directory')
     parser.add_argument('-e', '--extension', dest='extension',
-                        help='Used with -d, only look for files with this extension (e.g. ".pel")')
+                        help='Only look for files with this extension (e.g. ".pel")')
     parser.add_argument('-c', '--clean', dest='clean', action='store_true',
                         help='Delete original file after parsing')
     parser.add_argument('-t', '--termination', dest='critSysTerm',
