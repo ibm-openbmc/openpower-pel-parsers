@@ -322,6 +322,21 @@ def deletePELFromPELId(path: str, pelID: str) -> None:
         print("PEL not found")
 
 
+def parseAndPrintPELFile(file_path: str, config: Config, exit_on_error: bool) -> None:
+    """
+    Parses a PEL file and prints the JSON string representation.
+    Returns: None
+    """
+    try:
+        with open(file_path, 'rb') as fd:
+            data = fd.read()
+            stream = DataStream(data, byte_order='big', is_signed=False)
+            _, json_string = parsePEL(stream, config, exit_on_error)
+            print(json_string)
+    except Exception as e:
+        print(f"Exception: No PEL parsed for {file_path}: {e}")
+
+
 def parsePelFromID(path: str, pelID: str, config: Config) -> None:
     """
     Search the PEL id in the given path and prints the details.
@@ -334,16 +349,9 @@ def parsePelFromID(path: str, pelID: str, config: Config) -> None:
         for file in files:
             if pelID not in file:
                 continue
-            try:
-                with open(os.path.join(root, file), 'rb') as fd:
-                    data = fd.read()
-                    stream = DataStream(data, byte_order='big', is_signed=False)
-                    _, json_string = parsePEL(stream, config, False)
-                    print(json_string)
-                    foundID = True
-                    break
-            except Exception as e:
-                print(f"Exception: Could not read PEL file {file}: {e}")
+            parseAndPrintPELFile(os.path.join(root, file), config, False)
+            foundID = True
+            break
         # Only process top level directory
         break
     if not foundID:
@@ -586,13 +594,18 @@ def main():
     if args.hidden:
         config.hidden = True
 
+    if args.file:
+        parseAndPrintPELFile(args.file, config, True)
+        if args.clean:
+            os.remove(args.file)
+        sys.exit(0)
+
     if not inBMC:
-        if not args.file:
-            if not args.path:
-                sys.exit("Outside the BMC environment, please provide the path to the PELs using the -p option.")
-            if not os.path.isdir(args.path):
-                sys.exit(f"{args.path} is not a valid directory")
-            PELsPath = args.path
+        if not args.path:
+            sys.exit("Outside the BMC environment, please provide the path to the PELs using the -p option.")
+        if not os.path.isdir(args.path):
+            sys.exit(f"{args.path} is not a valid directory")
+        PELsPath = args.path
 
     if args.json:
         output_dir = PELsPath
@@ -639,16 +652,6 @@ def main():
     if args.deleteAll:
         deleteAllPELs(PELsPath)
         sys.exit(0)
-
-    with open(args.file, 'rb') as fd:
-        data = fd.read()
-        stream = DataStream(data, byte_order='big', is_signed=False)
-
-        _, json_string = parsePEL(stream, config, True)
-        print(json_string)
-
-        if args.clean:
-            os.remove(args.file)
 
 
 if __name__ == '__main__':
