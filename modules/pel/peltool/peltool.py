@@ -211,6 +211,30 @@ def severityBasedExclusion(uh: UserHeader, config: Config) -> bool:
             return False
     return True
 
+def excludePEL(uh: UserHeader, config: Config) -> bool:
+    """
+    Evaluates whether a PEL meets criteria based on specified conditions.
+    Returns True if the entry should be Excluded, False otherwise.
+    """
+    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
+        return True
+    
+    if config.non_serviceable_only and uh.isServiceable():
+        return True
+    
+    if config.serviceable_only and not uh.isServiceable():
+        return True
+    
+    if config.severities:
+        if severityBasedExclusion(uh, config):
+            return True
+    
+    if not config.hidden:
+        if uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
+            return True
+    
+    return False
+
 
 def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
     out = OrderedDict()
@@ -233,20 +257,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
         else:
             return "", ""
 
-    if config.serviceable_only and not uh.isServiceable():
-        return "", ""
-
-    if config.non_serviceable_only and uh.isServiceable():
-        return "", ""
-
-    if config.severities:
-        if severityBasedExclusion(uh, config):
-            return "", ""
-
-    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
-        return "", ""
-    
-    if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
+    if excludePEL(uh, config):
         return "", ""
 
     section_jsons = []
@@ -416,14 +427,7 @@ def parsePELSummary(stream: DataStream, config: Config):
     ret, uh = generateUH(stream, ph.creatorID, out)
     if ret is False:
         return "", ""
-    if not uh.isServiceable():
-        return "", ""
-    if config.severities:
-        if severityBasedExclusion(uh, config):
-            return "", ""
-    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
-        return "", ""
-    if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
+    if excludePEL(uh, config):
         return "", ""
 
     summary = OrderedDict()
@@ -494,7 +498,6 @@ def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = Fa
     Returns: None.
     Prints a JSON-formatted string containing PEL data from all valid files.
     """
-    config.serviceable_only = True
     root, file_list = getFileList(path, extension, rev)
     allPELsData = "[ \n"
     for file in file_list:
@@ -530,17 +533,8 @@ def printPELCount(path: str, config: Config, extension: str):
                 ret, uh = generateUH(stream, ph.creatorID, out)
                 if not ret:
                     continue
-                if not uh.isServiceable():  ## counting only the serviceable PELs
+                if excludePEL(uh, config):
                     continue
-                if config.severities:
-                    if severityBasedExclusion(uh, config):
-                        continue
-                if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
-                    continue
-                if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
-                    continue
-                ## TODO: include condition for includeInfo pels
-                ## TODO: include condition for scrubFile pels
                 count+= 1
             except Exception as e:
                 print(f"Exception: No PEL parsed for {file}: {e}")
