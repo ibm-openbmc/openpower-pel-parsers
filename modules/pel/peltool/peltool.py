@@ -528,6 +528,7 @@ def printPELCount(path: str, config: Config, extension: str):
 
 def main():
     PELsPath = "/var/lib/phosphor-logging/extensions/pels/logs/"
+    PELsArchivePath = "/var/lib/phosphor-logging/extensions/pels/logs/archive"
     inBMC = os.path.isdir(PELsPath)
     parser = argparse.ArgumentParser(description="PELTools")
 
@@ -574,6 +575,10 @@ def main():
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
+    else:
+        # peltool -A/--archive is specific to BMC only.
+        parser.add_argument('-A', '--archive',
+                        action='store_true', help='List or display archived PELs')
 
     args = parser.parse_args()
 
@@ -606,6 +611,10 @@ def main():
         if not os.path.isdir(args.path):
             sys.exit(f"{args.path} is not a valid directory")
         PELsPath = args.path
+    else:
+        # peltool -A/--archive is specific to BMC only.
+        if args.archive:
+            PELsPath = PELsArchivePath
 
     if args.json:
         output_dir = PELsPath
