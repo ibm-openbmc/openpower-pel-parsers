@@ -182,6 +182,19 @@ severityValues = {
 
 
 """
+The possible severity groups with there distinct starting hex digit. 
+"""
+severityGroupValues = {
+    'Informational': 0, 
+    'Recovered':     1, 
+    'Predictive':    2, 
+    'Unrecoverable': 4, 
+    'Critical':      5, 
+    'Diagnostic':    6, 
+    'Symptom':       7}
+
+
+"""
 The possible values for the Action Flags field in the User Header.
 """
 actionFlagsValues = {
