@@ -17,7 +17,7 @@ from pel.peltool.user_data import UserData
 from pel.peltool.ext_user_data import ExtUserData
 from pel.peltool.default import Default
 from pel.peltool.imp_partition import ImpactedPartition
-from pel.peltool.pel_values import sectionNames
+from pel.peltool.pel_values import sectionNames, severityGroupValues
 from pel.peltool.config import Config
 
 
@@ -201,6 +201,17 @@ def prettyPrint(Mdata: str, desiredSpace: int = 34) -> str:
     return '\n'.join(lines)
 
 
+def severityBasedExclusion(uh: UserHeader, config: Config) -> bool:
+    """
+    Determine if a PEL should be excluded based on its event severity.
+    Returns: True if the PEL severity is not in the provided list, False otherwise.
+    """
+    for sev in config.severities:
+        if hex(uh.eventSeverity).startswith(hex(sev)):
+            return False
+    return True
+
+
 def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
     out = OrderedDict()
 
@@ -227,7 +238,11 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
 
     if config.non_serviceable_only and uh.isServiceable():
         return "", ""
-    
+
+    if config.severities:
+        if severityBasedExclusion(uh, config):
+            return "", ""
+
     if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
         return "", ""
     
@@ -403,6 +418,9 @@ def parsePELSummary(stream: DataStream, config: Config):
         return "", ""
     if not uh.isServiceable():
         return "", ""
+    if config.severities:
+        if severityBasedExclusion(uh, config):
+            return "", ""
     if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
         return "", ""
     if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
@@ -514,6 +532,9 @@ def printPELCount(path: str, config: Config, extension: str):
                     continue
                 if not uh.isServiceable():  ## counting only the serviceable PELs
                     continue
+                if config.severities:
+                    if severityBasedExclusion(uh, config):
+                        continue
                 if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
                     continue
                 if not config.hidden and uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
@@ -572,6 +593,8 @@ def main():
                         dest='IDToDelete', help='Delete a PEL based on its ID')
     parser.add_argument('-D', '--delete-all', dest='deleteAll',
                         action='store_true', help='Delete all PELs')
+    parser.add_argument('-S', '--severities', nargs='+', choices=list(severityGroupValues.keys()), 
+                        help=f'Filter by severity value, consider pels matching the provided severities. {list(severityGroupValues.keys())}')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -598,6 +621,9 @@ def main():
 
     if args.hidden:
         config.hidden = True
+
+    if args.severities:
+        config.severities.extend(severityGroupValues[sev] for sev in args.severities)
 
     if args.file:
         parseAndPrintPELFile(args.file, config, True)
