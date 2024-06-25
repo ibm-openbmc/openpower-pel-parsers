@@ -11,3 +11,4 @@ class Config:
         self.hidden = False
         self.hex = False
         self.severities = []
+        self.only = False

@@ -212,29 +212,43 @@ def severityBasedExclusion(uh: UserHeader, config: Config) -> bool:
             return False
     return True
 
-def excludePEL(uh: UserHeader, config: Config) -> bool:
+def considerPEL(uh: UserHeader, config: Config) -> bool:
     """
     Evaluates whether a PEL meets criteria based on specified conditions.
-    Returns True if the entry should be Excluded, False otherwise.
+    Returns True if the entry should be Included, False otherwise.
     """
-    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
+    isHidden = uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value
+
+    if config.critSysTerm and uh.eventSeverity == SeverityValues.critSysTermSeverity.value:
+        return True
+
+    if config.non_serviceable_only and not uh.isServiceable():
         return True
     
-    if config.non_serviceable_only and uh.isServiceable():
+    if config.serviceable_only and uh.isServiceable():
+        return True
+
+    if config.severities and not severityBasedExclusion(uh, config):
+        return True
+
+    if config.hidden and isHidden:
         return True
     
-    if config.serviceable_only and not uh.isServiceable():
-        return True
+    """
+    Having verified each condition individually, reaching this point
+    indicates that the PEL does not satisfy the criteria for any
+    selected option.
+    Therefore, check if the "--only" option is used to determine
+    whether include serviceable PELs as the default case (i.e
+    hidden and non-serviceable PELs should not be included)
+
+    If "Yes", the serviceable PEL cannot be included.
+    If "No", the serviceable PEL can be included.
+    """
+    if config.only or isHidden or not uh.isServiceable():
+        return False
     
-    if config.severities:
-        if severityBasedExclusion(uh, config):
-            return True
-    
-    if not config.hidden:
-        if uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
-            return True
-    
-    return False
+    return True
 
 
 def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
@@ -258,7 +272,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
         else:
             return "", ""
 
-    if excludePEL(uh, config):
+    if not considerPEL(uh, config):
         return "", ""
 
     section_jsons = []
@@ -436,7 +450,7 @@ def parsePELSummary(stream: DataStream, config: Config):
     ret, uh = generateUH(stream, ph.creatorID, out)
     if ret is False:
         return "", ""
-    if excludePEL(uh, config):
+    if not considerPEL(uh, config):
         return "", ""
 
     summary = OrderedDict()
@@ -569,7 +583,7 @@ def printPELCount(path: str, config: Config, extension: str):
                 ret, uh = generateUH(stream, ph.creatorID, out)
                 if not ret:
                     continue
-                if excludePEL(uh, config):
+                if not considerPEL(uh, config):
                     continue
                 count+= 1
             except Exception as e:
@@ -605,10 +619,10 @@ def main():
     parser.add_argument('-f', '--file', dest='file',
                         help='input pel file to parse')
     parser.add_argument('-s', '--serviceable',
-                        help='Only parse serviceable (not info/recovered) PELs',
+                        help='Parse serviceable (not info/recovered) PELs',
                         action='store_true')
     parser.add_argument('-N', '--non-serviceable',
-                        help='Only parse non-serviceable (info/recovered) PELs',
+                        help='Parse non-serviceable (info/recovered) PELs',
                         action='store_true')
     parser.add_argument('-P', '--skip-parser-plugins', dest='skip_plugins',
                         action='store_true', help='Skip loading plugins')
@@ -636,6 +650,8 @@ def main():
                         action='store_true', help='Show number of PELs')
     parser.add_argument('-r', '--reverse',
                         action='store_true', help='Reverse order of output')
+    parser.add_argument('-O', '--only',
+                        action='store_true', help='Include only PELs that match the selected options')
     parser.add_argument('-H', '--hidden',
                         action='store_true', help='Include hidden PELs')
     parser.add_argument('-d', '--delete',
@@ -673,6 +689,9 @@ def main():
 
     if args.hidden:
         config.hidden = True
+    
+    if args.only:
+        config.only = True
 
     if args.severities:
         config.severities.extend(severityGroupValues[sev] for sev in args.severities)
