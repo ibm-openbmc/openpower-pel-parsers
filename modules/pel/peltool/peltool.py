@@ -541,11 +541,30 @@ def printPELCount(path: str, config: Config, extension: str):
     print("{\n    \"Number of PELs found\": "+str(count)+"\n}")
 
 
+class CustomFormatter(argparse.HelpFormatter):
+    """
+    This class is to enhance the formatting of argparse help messages 
+    for arguments that have choices and allow multiple values.
+    """
+    def _format_action(self, action):
+        # Override the default formatting for choices when nargs='+' is used
+        if action.choices and action.nargs == '+':
+            metavar = self._get_default_metavar_for_optional(action)
+            # Construct option string with metavar
+            option = f'{action.option_strings[0]} {metavar}, {action.option_strings[1]} {metavar}'
+            help_text = self._expand_help(action)
+            # Format choices into a more readable list
+            choices_str = ', '.join(action.choices)
+            # Return formatted string for the action
+            return f"  {option}\n\t\t\t{help_text} Choose from: {{{choices_str}}}. Can choose multiple values.\n"
+        return super()._format_action(action)
+
+
 def main():
     PELsPath = "/var/lib/phosphor-logging/extensions/pels/logs/"
     PELsArchivePath = "/var/lib/phosphor-logging/extensions/pels/logs/archive"
     inBMC = os.path.isdir(PELsPath)
-    parser = argparse.ArgumentParser(description="PELTools")
+    parser = argparse.ArgumentParser(formatter_class=CustomFormatter, description="PELTools")
 
     parser.add_argument('-f', '--file', dest='file',
                         help='input pel file to parse')
@@ -588,7 +607,7 @@ def main():
     parser.add_argument('-D', '--delete-all', dest='deleteAll',
                         action='store_true', help='Delete all PELs')
     parser.add_argument('-S', '--severities', nargs='+', choices=list(severityGroupValues.keys()), 
-                        help=f'Filter by severity value, consider pels matching the provided severities. {list(severityGroupValues.keys())}')
+                        help=f'Filter by severity value.')
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
