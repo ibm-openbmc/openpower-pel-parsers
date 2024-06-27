@@ -19,6 +19,7 @@ from pel.peltool.default import Default
 from pel.peltool.imp_partition import ImpactedPartition
 from pel.peltool.pel_values import sectionNames, severityGroupValues
 from pel.peltool.config import Config
+from pel.hexdump import hexdump
 
 
 def getSectionName(sectionID: int) -> str:
@@ -358,7 +359,11 @@ def parseAndPrintPELFile(file_path: str, config: Config, exit_on_error: bool) ->
             data = fd.read()
             stream = DataStream(data, byte_order='big', is_signed=False)
             _, json_string = parsePEL(stream, config, exit_on_error)
-            print(json_string)
+            if json_string:
+                if not config.hex:
+                    print(json_string)        
+                else:
+                    printPELInHexFormat(data)
     except Exception as e:
         print(f"Exception: No PEL parsed for {file_path}: {e}")
 
@@ -402,7 +407,11 @@ def parsePelFromBmcID(path: str, bmcID: str, config: Config) -> None:
                     if str(ph.obmcLogID) == bmcID:
                         stream = DataStream(data, byte_order='big', is_signed=False)
                         _, json_string = parsePEL(stream, config, False)
-                        print(json_string)
+                        if json_string:
+                            if not config.hex:
+                                print(json_string)
+                            else:
+                                printPELInHexFormat(data)
                         foundID = True
                         break
             except Exception as e:
@@ -461,7 +470,10 @@ def extractAndSummarizePEL(file: str, config: Config):
         try:
             eid, summary = parsePELSummary(stream, config)
             if eid :
-                return eid, summary
+                if config.hex:
+                    printPELInHexFormat(data)
+                else:
+                    return eid, summary
         except Exception as e:
             print(f"Exception: No PEL parsed for {file}: {e}")
     return "", ""
@@ -490,7 +502,8 @@ def listOption(path: str, config: Config, extension: str, rev: bool = False):
         eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
         if eid :
             final_summary[eid] = summary
-    print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
+    if not config.hex:
+        print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
 def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = False):
     """
@@ -507,11 +520,34 @@ def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = Fa
                 stream = DataStream(data, byte_order='big', is_signed=False)
                 _, json_string = parsePEL(stream, config, False)
                 if json_string:
-                    allPELsData = allPELsData + json_string + ",\n"
+                    if not config.hex:
+                        allPELsData = allPELsData + json_string + ",\n"
+                    else:
+                        printPELInHexFormat(data)
             except Exception as e:
                 print(f"Exception: No PEL parsed for {file}: {e}")
-    allPELsData = allPELsData[:-2] + "\n]"
-    print(allPELsData)
+    if not config.hex:
+        allPELsData = allPELsData[:-2] + "\n]"
+        print(allPELsData)
+
+
+def printPELInHexFormat(data: memoryview) -> None:
+    """
+    Read single PEL file data and display in hexdecimal format.
+    Returns: None
+    Prints PEL data in the hexdecimal format.
+    """
+    try:
+        mv = memoryview(data)
+        hexdata = hexdump(mv)
+        # Add line seperator for PELs in hexadecimal format.
+        print("-------------- PEL Begin  ----------------")
+        for line in hexdata:
+            print(line)
+        print("-------------- PEL End    ----------------")
+    except Exception as e:
+        print(f"Exception: No PEL parsed for {file}: {e}")
+
 
 def printPELCount(path: str, config: Config, extension: str):
     """
@@ -608,6 +644,9 @@ def main():
                         action='store_true', help='Delete all PELs')
     parser.add_argument('-S', '--severities', nargs='+', choices=list(severityGroupValues.keys()), 
                         help=f'Filter by severity value.')
+    parser.add_argument('-x', '--hex',
+                        action='store_true', help='Display PEL(s) in hexdump instead of JSON')
+
     if not inBMC:
         parser.add_argument('-p', '--path',
                         dest='path', help='Specify path to PELs')
@@ -637,6 +676,9 @@ def main():
 
     if args.severities:
         config.severities.extend(severityGroupValues[sev] for sev in args.severities)
+
+    if args.hex:
+        config.hex = True
 
     if args.file:
         parseAndPrintPELFile(args.file, config, True)
