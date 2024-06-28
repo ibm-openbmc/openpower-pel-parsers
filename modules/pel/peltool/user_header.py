@@ -2,6 +2,7 @@ from pel.datastream import DataStream
 from collections import OrderedDict
 from pel.peltool.pel_values import actionFlagsValues, subsystemValues, \
     severityValues, eventTypeValues, eventScopeValues, transmissionStates
+from pel.peltool.pel_types import SeverityValues, ActionFlagsValues
 from pel.peltool.comp_id import getDisplayCompID
 
 
@@ -36,9 +37,20 @@ class UserHeader:
         self.actionFlags = 0
         self.states = 0
 
+    def isHidden(self) -> bool:
+        return self.actionFlags & ActionFlagsValues.hiddenActionFlag.value
+
     def isServiceable(self) -> bool:
-        # consider it a serviceable PEL if not an info or recovered error
-        return self.eventSeverity != 0x00 and self.eventSeverity != 0x10
+        ## if it isn't Informational
+        if self.eventSeverity != SeverityValues.infoSeverity.value:
+            ##  report flag is set and the hidden flag isn't set
+            if self.actionFlags & ActionFlagsValues.reportFlag.value:
+                if not self.isHidden():
+                    return True
+        ## Informational and ServiceAction flag is set
+        elif self.actionFlags & ActionFlagsValues.serviceActionFlag.value:
+            return True
+        return False
 
     def toJSON(self) -> OrderedDict:
         self.eventSubsystem = self.stream.get_int(1)

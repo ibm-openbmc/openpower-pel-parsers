@@ -3,12 +3,16 @@ from enum import Enum, unique
 
 @unique
 class SeverityValues(Enum):
+    infoSeverity = 0x00
+    recoveredSeverity = 0x10
     critSysTermSeverity = 0x51
 
 
 @unique
 class ActionFlagsValues(Enum):
+    serviceActionFlag = 0x8000
     hiddenActionFlag = 0x4000
+    reportFlag = 0x2000
 
 
 @unique
