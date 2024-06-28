@@ -495,8 +495,8 @@ def getFileList(path: str, extension: str, rev: bool = False):
     file_list.sort(reverse=rev)
     return root, file_list
 
-def listOption(path: str, config: Config, extension: str, rev: bool = False):
-    root, file_list = getFileList(path, extension, rev)
+def listOption(path: str, config: Config, extension: str):
+    root, file_list = getFileList(path, extension, config.rev)
     final_summary = {}
     for file in file_list:
         eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
@@ -505,13 +505,13 @@ def listOption(path: str, config: Config, extension: str, rev: bool = False):
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
-def extractAllPELsData(path: str, config: Config, extension: str, rev: bool = False):
+def extractAllPELsData(path: str, config: Config, extension: str):
     """
     Extracts and display serviceable PELs data from files in the specified directory.
     Returns: None.
     Prints a JSON-formatted string containing PEL data from all valid files.
     """
-    root, file_list = getFileList(path, extension, rev)
+    root, file_list = getFileList(path, extension, config.rev)
     allPELsData = "[ \n"
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
@@ -680,6 +680,9 @@ def main():
     if args.hex:
         config.hex = True
 
+    if args.reverse:
+        config.rev = True
+
     if args.file:
         parseAndPrintPELFile(args.file, config, True)
         if args.clean:
@@ -724,7 +727,7 @@ def main():
         sys.exit(0)
 
     if args.list:
-        listOption(PELsPath, config, args.extension, args.reverse)
+        listOption(PELsPath, config, args.extension)
         sys.exit(0)
     
     if args.show_pel_count:
@@ -732,7 +735,7 @@ def main():
         sys.exit(0)
 
     if args.all:
-        extractAllPELsData(PELsPath, config, args.extension, args.reverse)
+        extractAllPELsData(PELsPath, config, args.extension)
         sys.exit(0)
 
     if args.IDToDelete:

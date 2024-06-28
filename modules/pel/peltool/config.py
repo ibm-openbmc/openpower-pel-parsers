@@ -10,4 +10,5 @@ class Config:
         self.critSysTerm = False
         self.hidden = False
         self.hex = False
+        self.rev = False
         self.severities = []
