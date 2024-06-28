@@ -10,7 +10,7 @@ from collections import OrderedDict
 from pel.peltool.private_header import PrivateHeader
 from pel.peltool.user_header import UserHeader
 from pel.peltool.src import SRC
-from pel.peltool.pel_types import SectionID, SeverityValues, ActionFlagsValues
+from pel.peltool.pel_types import SectionID, SeverityValues
 from pel.peltool.extend_user_header import ExtendedUserHeader
 from pel.peltool.failing_mtms import FailingMTMS
 from pel.peltool.user_data import UserData
@@ -231,7 +231,7 @@ def excludePEL(uh: UserHeader, config: Config) -> bool:
             return True
     
     if not config.hidden:
-        if uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
+        if uh.isHidden():
             return True
     
     return False
