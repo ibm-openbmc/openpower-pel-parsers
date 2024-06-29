@@ -495,8 +495,8 @@ def getFileList(path: str, extension: str, rev: bool = False):
     file_list.sort(reverse=rev)
     return root, file_list
 
-def listOption(path: str, config: Config, extension: str):
-    root, file_list = getFileList(path, extension, config.rev)
+def listOption(path: str, config: Config):
+    root, file_list = getFileList(path, config.extension, config.rev)
     final_summary = {}
     for file in file_list:
         eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
@@ -505,13 +505,13 @@ def listOption(path: str, config: Config, extension: str):
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
-def extractAllPELsData(path: str, config: Config, extension: str):
+def extractAllPELsData(path: str, config: Config):
     """
     Extracts and display serviceable PELs data from files in the specified directory.
     Returns: None.
     Prints a JSON-formatted string containing PEL data from all valid files.
     """
-    root, file_list = getFileList(path, extension, config.rev)
+    root, file_list = getFileList(path, config.extension, config.rev)
     allPELsData = "[ \n"
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
@@ -549,14 +549,14 @@ def printPELInHexFormat(data: memoryview) -> None:
         print(f"Exception: No PEL parsed for {file}: {e}")
 
 
-def printPELCount(path: str, config: Config, extension: str):
+def printPELCount(path: str, config: Config):
     """
     Reads and display serviceable PEL count from the specified directory.
     Returns: None
     Prints a JSON-formatted string containing count of valid PELs in specified directory.
     """
     count = 0
-    root, file_list = getFileList(path, extension)
+    root, file_list = getFileList(path, config.extension)
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
             data = fd.read()
@@ -683,6 +683,9 @@ def main():
     if args.reverse:
         config.rev = True
 
+    if args.extension:
+        config.extension = args.extension
+
     if args.file:
         parseAndPrintPELFile(args.file, config, True)
         if args.clean:
@@ -709,7 +712,7 @@ def main():
 
         for root, _, files in os.walk(PELsPath):
             for file in files:
-                if args.extension and args.extension != os.path.splitext(file)[1]:
+                if config.extension and config.extension != os.path.splitext(file)[1]:
                     continue
                 parseAndWriteOutput(os.path.join(
                     root, file), output_dir, config,
@@ -727,15 +730,15 @@ def main():
         sys.exit(0)
 
     if args.list:
-        listOption(PELsPath, config, args.extension)
+        listOption(PELsPath, config)
         sys.exit(0)
     
     if args.show_pel_count:
-        printPELCount(PELsPath, config, args.extension)
+        printPELCount(PELsPath, config)
         sys.exit(0)
 
     if args.all:
-        extractAllPELsData(PELsPath, config, args.extension)
+        extractAllPELsData(PELsPath, config)
         sys.exit(0)
 
     if args.IDToDelete:
