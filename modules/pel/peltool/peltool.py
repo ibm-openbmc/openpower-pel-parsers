@@ -10,7 +10,7 @@ from collections import OrderedDict
 from pel.peltool.private_header import PrivateHeader
 from pel.peltool.user_header import UserHeader
 from pel.peltool.src import SRC
-from pel.peltool.pel_types import SectionID, SeverityValues, ActionFlagsValues
+from pel.peltool.pel_types import SectionID, SeverityValues
 from pel.peltool.extend_user_header import ExtendedUserHeader
 from pel.peltool.failing_mtms import FailingMTMS
 from pel.peltool.user_data import UserData
@@ -202,40 +202,79 @@ def prettyPrint(Mdata: str, desiredSpace: int = 34) -> str:
     return '\n'.join(lines)
 
 
-def severityBasedExclusion(uh: UserHeader, config: Config) -> bool:
+def considerPELIfSeverityMatches(uh: UserHeader, config: Config) -> bool:
     """
-    Determine if a PEL should be excluded based on its event severity.
-    Returns: True if the PEL severity is not in the provided list, False otherwise.
+    Determine if a PEL should be considered based on its event severity.
+    Returns: True if the PEL severity matches with the given severity list,
+             False otherwise.
     """
     for sev in config.severities:
         if hex(uh.eventSeverity).startswith(hex(sev)):
-            return False
-    return True
-
-def excludePEL(uh: UserHeader, config: Config) -> bool:
-    """
-    Evaluates whether a PEL meets criteria based on specified conditions.
-    Returns True if the entry should be Excluded, False otherwise.
-    """
-    if config.critSysTerm and uh.eventSeverity != SeverityValues.critSysTermSeverity.value:
-        return True
-    
-    if config.non_serviceable_only and uh.isServiceable():
-        return True
-    
-    if config.serviceable_only and not uh.isServiceable():
-        return True
-    
-    if config.severities:
-        if severityBasedExclusion(uh, config):
             return True
-    
-    if not config.hidden:
-        if uh.actionFlags & ActionFlagsValues.hiddenActionFlag.value:
-            return True
-    
     return False
 
+def considerPEL(uh: UserHeader, config: Config) -> bool:
+    """
+    Evaluates whether a PEL meets criteria based on given option(s).
+    Returns True if the PEL should be considered, False otherwise.
+    """
+
+    if config.critSysTerm and uh.eventSeverity == SeverityValues.critSysTermSeverity.value:
+        return True
+
+    if config.serviceable and uh.isServiceable():
+        if config.only and config.severities and not considerPELIfSeverityMatches(uh, config):
+            """
+            Only consider matched serviceable severities PELs;
+            disregard the rest.
+            """
+            return False
+        return True
+
+    if config.non_serviceable and not uh.isServiceable():
+        if config.only and config.severities and not considerPELIfSeverityMatches(uh, config):
+            """
+            Only consider matched non-serviceable severities PELs;
+            disregard the rest.
+            """
+            return False
+        return True
+
+    if config.hidden and uh.isHidden():
+        if config.only and config.severities and not considerPELIfSeverityMatches(uh, config):
+            """
+            Only consider matched hidden severities PELs;
+            disregard the rest.
+            """
+            return False
+        return True
+    
+    if config.severities and considerPELIfSeverityMatches(uh, config):
+        if config.only and (config.serviceable or
+                            config.non_serviceable or
+                            config.hidden):
+            """
+            Only consider matched severities PELs if no serviceable,
+            non-serviceable, or hidden PELs are expected.
+            """
+            return False
+        return True
+
+    """
+    Having verified each criteria options individually, reaching this point
+    indicates that the PEL does not satisfy the criteria for any
+    selected option.
+    Therefore, check if the "--only" option is used to determine
+    whether include serviceable PELs as the default case (i.e
+    hidden and non-serviceable PELs should not be included)
+
+    If "Yes", the serviceable PEL cannot be included.
+    If "No", the serviceable PEL can be included.
+    """
+    if config.only or uh.isHidden() or not uh.isServiceable():
+        return False
+
+    return True
 
 def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
     out = OrderedDict()
@@ -258,7 +297,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
         else:
             return "", ""
 
-    if excludePEL(uh, config):
+    if not considerPEL(uh, config):
         return "", ""
 
     section_jsons = []
@@ -436,7 +475,7 @@ def parsePELSummary(stream: DataStream, config: Config):
     ret, uh = generateUH(stream, ph.creatorID, out)
     if ret is False:
         return "", ""
-    if excludePEL(uh, config):
+    if not considerPEL(uh, config):
         return "", ""
 
     summary = OrderedDict()
@@ -569,7 +608,7 @@ def printPELCount(path: str, config: Config):
                 ret, uh = generateUH(stream, ph.creatorID, out)
                 if not ret:
                     continue
-                if excludePEL(uh, config):
+                if not considerPEL(uh, config):
                     continue
                 count+= 1
             except Exception as e:
@@ -605,10 +644,10 @@ def main():
     parser.add_argument('-f', '--file', dest='file',
                         help='input pel file to parse')
     parser.add_argument('-s', '--serviceable',
-                        help='Only parse serviceable (not info/recovered) PELs',
+                        help='Parse serviceable (not info/recovered) PELs',
                         action='store_true')
     parser.add_argument('-N', '--non-serviceable',
-                        help='Only parse non-serviceable (info/recovered) PELs',
+                        help='Parse non-serviceable (info/recovered) PELs',
                         action='store_true')
     parser.add_argument('-P', '--skip-parser-plugins', dest='skip_plugins',
                         action='store_true', help='Skip loading plugins')
@@ -636,6 +675,8 @@ def main():
                         action='store_true', help='Show number of PELs')
     parser.add_argument('-r', '--reverse',
                         action='store_true', help='Reverse order of output')
+    parser.add_argument('-O', '--only',
+                        action='store_true', help='Include only PELs that match the selected options')
     parser.add_argument('-H', '--hidden',
                         action='store_true', help='Include hidden PELs')
     parser.add_argument('-d', '--delete',
@@ -663,16 +704,19 @@ def main():
         config.allow_plugins = False
 
     if args.serviceable:
-        config.serviceable_only = True
+        config.serviceable = True
 
     if args.non_serviceable:
-        config.non_serviceable_only = True
+        config.non_serviceable = True
 
     if args.critSysTerm:
         config.critSysTerm = True
 
     if args.hidden:
         config.hidden = True
+
+    if args.only:
+        config.only = True
 
     if args.severities:
         config.severities.extend(severityGroupValues[sev] for sev in args.severities)

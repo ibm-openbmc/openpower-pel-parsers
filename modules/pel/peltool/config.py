@@ -5,11 +5,12 @@ class Config:
 
     def __init__(self) -> None:
         self.allow_plugins = True
-        self.serviceable_only = False
-        self.non_serviceable_only = False
+        self.serviceable = False
+        self.non_serviceable = False
         self.critSysTerm = False
         self.hidden = False
         self.hex = False
         self.rev = False
         self.extension = None
         self.severities = []
+        self.only = False
