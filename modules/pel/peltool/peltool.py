@@ -272,6 +272,10 @@ def considerPEL(uh: UserHeader, config: Config) -> bool:
     If "No", the serviceable PEL can be included.
     """
     if config.only or uh.isHidden() or not uh.isServiceable():
+        # Ignore hidden/non-serviceable PELs check for the
+        # --plid and --src option.
+        if config.plid or config.src:
+            return True
         return False
 
     return True
@@ -354,25 +358,26 @@ def deleteAllPELs(path: str) -> None:
         break
 
 
-def process_pelID(pelID: str) -> str:
+def processId(pid: str) -> str:
     """
     Processes a string by converting it to uppercase and removing the "0X" prefix if present.
-    Returns: str: Processed pelID string.
+    Returns: str: Processed ID string.
     """
-    PEL_ID_LENGTH = 8
-    pelID = pelID.upper()
-    if pelID.startswith("0X"):
-        pelID = pelID[2:]
-    if len(pelID) != PEL_ID_LENGTH:
-        sys.exit("Invalid length of PEL ID passed")
-    return pelID
+    # For Entry ID and Platform Log ID the default length is 8.
+    DEFAULT_ID_LENGTH = 8
+    pid = pid.upper()
+    if pid.startswith("0X"):
+        pid = pid[2:]
+    if len(pid) != DEFAULT_ID_LENGTH:
+        sys.exit("Invalid length of ID is provided!")
+    return pid 
 
 def deletePELFromPELId(path: str, pelID: str) -> None:
     """
     Search the PEL id in the given path and delete it.
     Returns: None
     """
-    pelID = process_pelID(pelID)
+    pelID = processId(pelID)
     foundID = False
     root = ""
     for root, _, files in os.walk(path):
@@ -412,7 +417,7 @@ def parsePelFromID(path: str, pelID: str, config: Config) -> None:
     Search the PEL id in the given path and prints the details.
     Returns: None
     """
-    pelID = process_pelID(pelID)
+    pelID = processId(pelID)
     foundID = False
     root = ""
     for root, _, files in os.walk(path):
@@ -459,6 +464,63 @@ def parsePelFromBmcID(path: str, bmcID: str, config: Config) -> None:
         break
     if not foundID:
         print("PEL not found")
+
+
+def parsePelFromPLID(path: str, config: Config):
+    """
+    Parse and display PELs matching with the input PLID from the specified directory.
+    Returns: None
+    Prints a JSON-formatted string containing valid PELs in the specified directory.
+    """
+    plid = processId(config.plid)
+    root, file_list = getFileList(path, config.extension, config.rev)
+    final_summary = {}
+    for file in file_list:
+        with open(os.path.join(root, file), 'rb') as fd:
+            data = fd.read()
+            stream = DataStream(data, byte_order='big', is_signed=False)
+            try:
+                eid, summary = parsePELSummary(stream, config)
+                if eid :
+                    if plid in summary['PLID']:
+                        if config.hex:
+                            printPELInHexFormat(data)
+                        else:
+                            final_summary[eid] = summary
+            except Exception as e:
+                print(f"Exception: No PEL parsed for {file}: {e}")
+    if not config.hex:
+        print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
+
+
+def parsePelFromSRCID(path: str, config: Config):
+    """
+    Parse and display PELs matching with the input SRC ID from the specified directory.
+    Returns: None
+    Prints a JSON-formatted string containing valid PELs in the specified directory.
+    """
+    if config.src:
+        if len(config.src) > 32:
+            sys.exit('Invalid SRC length is provided!')
+
+    root, file_list = getFileList(path, config.extension, config.rev)
+    final_summary = {}
+    for file in file_list:
+        with open(os.path.join(root, file), 'rb') as fd:
+            data = fd.read()
+            stream = DataStream(data, byte_order='big', is_signed=False)
+            try:
+                eid, summary = parsePELSummary(stream, config)
+                if eid :
+                    if config.src and config.src in summary['SRC']:
+                        if config.hex:
+                            printPELInHexFormat(data)
+                        else:
+                            final_summary[eid] = summary
+            except Exception as e:
+                print(f"Exception: No PEL parsed for {file}: {e}")
+    if not config.hex:
+        print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
 
 def parsePELSummary(stream: DataStream, config: Config):
@@ -516,6 +578,7 @@ def extractAndSummarizePEL(file: str, config: Config):
         except Exception as e:
             print(f"Exception: No PEL parsed for {file}: {e}")
     return "", ""
+
 
 def getFileList(path: str, extension: str, rev: bool = False):
     """
@@ -667,6 +730,10 @@ def main():
                         dest='pelID', help='Display a PEL based on its ID')
     parser.add_argument('--bmc-id',
                         dest='bmcID', help='Display a PEL based on its BMC Event ID')
+    parser.add_argument('--plid',
+                        dest='plID', help='Display PELs based on its Platform Log ID')
+    parser.add_argument('--src',
+                        dest='src', help='Display PELs based on its System Reference Code')
     parser.add_argument('-l', '--list',
                         action='store_true', help='List PELs')
     parser.add_argument('-a', '--all-pels', dest='all',
@@ -771,6 +838,16 @@ def main():
     
     if args.bmcID:
         parsePelFromBmcID(PELsPath, args.bmcID, config)
+        sys.exit(0)
+
+    if args.plID:
+        config.plid = args.plID
+        parsePelFromPLID(PELsPath, config)
+        sys.exit(0)
+
+    if args.src:
+        config.src = args.src
+        parsePelFromSRCID(PELsPath, config)
         sys.exit(0)
 
     if args.list:

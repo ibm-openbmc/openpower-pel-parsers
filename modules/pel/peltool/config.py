@@ -14,3 +14,5 @@ class Config:
         self.extension = None
         self.severities = []
         self.only = False
+        self.plid = None
+        self.src = None
