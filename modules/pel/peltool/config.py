@@ -18,3 +18,4 @@ class Config:
         self.src = None
         self.bmcID = None
         self.pelID = None
+        self.srcExcludeFile = None
