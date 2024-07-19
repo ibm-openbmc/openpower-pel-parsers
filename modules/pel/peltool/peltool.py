@@ -273,8 +273,8 @@ def considerPEL(uh: UserHeader, config: Config) -> bool:
     """
     if config.only or uh.isHidden() or not uh.isServiceable():
         # Ignore hidden/non-serviceable PELs check for the
-        # --plid and --src option.
-        if config.plid or config.src:
+        # --plid and --src option and --id and --bmc-id
+        if config.plid or config.src or config.bmcID or config.pelID:
             return True
         return False
 
@@ -412,12 +412,12 @@ def parseAndPrintPELFile(file_path: str, config: Config, exit_on_error: bool) ->
         print(f"Exception: No PEL parsed for {file_path}: {e}")
 
 
-def parsePelFromID(path: str, pelID: str, config: Config) -> None:
+def parsePelFromID(path: str, config: Config) -> None:
     """
     Search the PEL id in the given path and prints the details.
     Returns: None
     """
-    pelID = processId(pelID)
+    pelID = processId(config.pelID)
     foundID = False
     root = ""
     for root, _, files in os.walk(path):
@@ -433,7 +433,7 @@ def parsePelFromID(path: str, pelID: str, config: Config) -> None:
         print("PEL not found")
 
 
-def parsePelFromBmcID(path: str, bmcID: str, config: Config) -> None:
+def parsePelFromBmcID(path: str, config: Config) -> None:
     """
     Search the PEL with given BMC Event ID in the given path and prints the details.
     Returns: None
@@ -448,7 +448,7 @@ def parsePelFromBmcID(path: str, bmcID: str, config: Config) -> None:
                     stream = DataStream(data, byte_order='big', is_signed=False)
                     out = OrderedDict()
                     _, ph = generatePH(stream, out)
-                    if str(ph.obmcLogID) == bmcID:
+                    if str(ph.obmcLogID) == config.bmcID:
                         stream = DataStream(data, byte_order='big', is_signed=False)
                         _, json_string = parsePEL(stream, config, False)
                         if json_string:
@@ -833,11 +833,13 @@ def main():
         sys.exit(0)
 
     if args.pelID:
-        parsePelFromID(PELsPath, args.pelID, config)
+        config.pelID = args.pelID
+        parsePelFromID(PELsPath, config)
         sys.exit(0)
     
     if args.bmcID:
-        parsePelFromBmcID(PELsPath, args.bmcID, config)
+        config.bmcID = args.bmcID
+        parsePelFromBmcID(PELsPath, config)
         sys.exit(0)
 
     if args.plID:
