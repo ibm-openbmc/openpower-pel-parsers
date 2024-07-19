@@ -16,3 +16,5 @@ class Config:
         self.only = False
         self.plid = None
         self.src = None
+        self.bmcID = None
+        self.pelID = None
