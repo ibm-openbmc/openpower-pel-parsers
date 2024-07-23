@@ -503,6 +503,10 @@ def parsePelFromSRCID(path: str, config: Config):
         if len(config.src) > 32:
             sys.exit('Invalid SRC length is provided!')
 
+    if config.srcExcludeFile:
+        with open(config.srcExcludeFile, 'r') as fd:
+            src_exclude_file_data = fd.read()
+
     root, file_list = getFileList(path, config.extension, config.rev)
     final_summary = {}
     for file in file_list:
@@ -517,6 +521,13 @@ def parsePelFromSRCID(path: str, config: Config):
                             printPELInHexFormat(data)
                         else:
                             final_summary[eid] = summary
+                    if (config.srcExcludeFile):
+                        if summary['SRC'] not in src_exclude_file_data:
+                            if config.hex:
+                                printPELInHexFormat(data)
+                            else:
+                                final_summary[eid] = summary
+
             except Exception as e:
                 print(f"Exception: No PEL parsed for {file}: {e}")
     if not config.hex:
@@ -734,6 +745,8 @@ def main():
                         dest='plID', help='Display PELs based on its Platform Log ID')
     parser.add_argument('--src',
                         dest='src', help='Display PELs based on its System Reference Code')
+    parser.add_argument('--src-exclude',
+                        dest='src_exclude_file', help='Display PELs excluding SRCs from the file')
     parser.add_argument('-l', '--list',
                         action='store_true', help='List PELs')
     parser.add_argument('-a', '--all-pels', dest='all',
@@ -849,6 +862,13 @@ def main():
 
     if args.src:
         config.src = args.src
+        parsePelFromSRCID(PELsPath, config)
+        sys.exit(0)
+
+    if args.src_exclude_file:
+        config.srcExcludeFile = args.src_exclude_file
+        if not os.path.isfile(config.srcExcludeFile):
+            sys.exit(f"Input {config.srcExcludeFile} file doesn't exist!")
         parsePelFromSRCID(PELsPath, config)
         sys.exit(0)
 
