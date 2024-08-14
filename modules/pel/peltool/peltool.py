@@ -690,7 +690,7 @@ def printPELCount(path: str, config: Config):
     print("{\n    \"Number of PELs found\": "+str(count)+"\n}")
 
 
-class CustomFormatter(argparse.HelpFormatter):
+class CustomFormatter(argparse.RawDescriptionHelpFormatter):
     """
     This class is to enhance the formatting of argparse help messages 
     for arguments that have choices and allow multiple values.
@@ -705,7 +705,8 @@ class CustomFormatter(argparse.HelpFormatter):
             # Format choices into a more readable list
             choices_str = ', '.join(action.choices)
             # Return formatted string for the action
-            return f"  {option}\n\t\t\t{help_text} Choose from: {{{choices_str}}}. Can choose multiple values.\n"
+            return f"  {option}\n\t\t\t{help_text}\n\t\t\tChoose from: {{{choices_str}}}." + \
+                   f"\n\t\t\tCan choose multiple values.\n"
         return super()._format_action(action)
 
 
@@ -713,68 +714,101 @@ def main():
     PELsPath = "/var/lib/phosphor-logging/extensions/pels/logs/"
     PELsArchivePath = "/var/lib/phosphor-logging/extensions/pels/logs/archive"
     inBMC = os.path.isdir(PELsPath)
-    parser = argparse.ArgumentParser(formatter_class=CustomFormatter, description="PELTools")
+
+    peltool_cmd = os.path.basename(sys.argv[0])
+    if not inBMC:
+        peltool_cmd = peltool_cmd + " -p <pel_dir>"
+    example_text = '''Examples:
+        -------------------------
+
+        List servicable PELs: {0} -l
+        List informational PELs along with serviceable PELs: {0} -l -S Informational
+        List only hidden PELs: {0} -l -H -O
+        List only unrecoverable PELs: {0} -l -O -S Unrecoverable
+        Count only hidden PELs: {0} -n -H -O
+        Count only predictive PELs: {0} -n -O -S Predictive
+        Display servicable PELs data: {0} -a
+        Display recovered PELs along with serviceable PELs data: {0} -a -S Recovered
+        Display only hidden PELs data: {0} -a -H -O
+        Display only critical PELs data: {0} -a -O -S Critical
+        '''.format(peltool_cmd)
+
+    parser = argparse.ArgumentParser(formatter_class=CustomFormatter,
+                                     description="PELTools", epilog=example_text)
+    if not inBMC:
+        parser.add_argument('-p', '--path', dest='path',
+                            metavar='</path/to/pel/files/>',
+                            help='Specify the path to parse PELs')
+    else:
+        parser.add_argument('-A', '--archive', action='store_true',
+                            help='Fetch PEL(s) details from the archived path')
+
+    parser.add_argument('-P', '--skip-parser-plugins', dest='skip_plugins',
+                        action='store_true', help='Skip loading PEL parser plugins')
 
     parser.add_argument('-f', '--file', dest='file',
-                        help='input pel file to parse')
-    parser.add_argument('-s', '--serviceable',
-                        help='Parse serviceable (not info/recovered) PELs',
-                        action='store_true')
-    parser.add_argument('-N', '--non-serviceable',
-                        help='Parse non-serviceable (info/recovered) PELs',
-                        action='store_true')
-    parser.add_argument('-P', '--skip-parser-plugins', dest='skip_plugins',
-                        action='store_true', help='Skip loading plugins')
-    parser.add_argument('-j', '--json',
-                        help='Process all files in a directory and save as <filename>.json.'
-                        ' Use -o to specify output directory',
-                        action='store_true')
-    parser.add_argument('-o', '--output-dir', dest='output_dir',
-                        help='Directory to write output files when processing a directory')
-    parser.add_argument('-e', '--extension', dest='extension',
-                        help='Only look for files with this extension (e.g. ".pel")')
-    parser.add_argument('-c', '--clean', dest='clean', action='store_true',
-                        help='Delete original file after parsing')
-    parser.add_argument('-t', '--termination', dest='critSysTerm',
-                        action='store_true', help='List only critical system terminating PELs')
-    parser.add_argument('-i', '--id',
-                        dest='pelID', help='Display a PEL based on its ID')
-    parser.add_argument('--bmc-id',
-                        dest='bmcID', help='Display a PEL based on its BMC Event ID')
-    parser.add_argument('--plid',
-                        dest='plID', help='Display PELs based on its Platform Log ID')
-    parser.add_argument('--src',
-                        dest='src', help='Display PELs based on its System Reference Code')
-    parser.add_argument('--src-exclude',
-                        dest='src_exclude_file', help='Display PELs excluding SRCs from the file')
-    parser.add_argument('-l', '--list',
-                        action='store_true', help='List PELs')
-    parser.add_argument('-a', '--all-pels', dest='all',
-                        action='store_true', help='Display all PELs')
+                        metavar='</path/to/pel/file>',
+                        help='Input PEL file to extract PEL data')
+
+    parser.add_argument('-l', '--list', action='store_true',
+                        help='List PELs')
+    parser.add_argument('-a', '--all-pels', dest='all', action='store_true',
+                        help='Display all PELs data')
     parser.add_argument('-n', '--show-pel-count', dest='show_pel_count',
                         action='store_true', help='Show number of PELs')
-    parser.add_argument('-r', '--reverse',
-                        action='store_true', help='Reverse order of output')
-    parser.add_argument('-O', '--only',
-                        action='store_true', help='Include only PELs that match the selected options')
-    parser.add_argument('-H', '--hidden',
-                        action='store_true', help='Include hidden PELs')
-    parser.add_argument('-d', '--delete',
-                        dest='IDToDelete', help='Delete a PEL based on its ID')
-    parser.add_argument('-D', '--delete-all', dest='deleteAll',
-                        action='store_true', help='Delete all PELs')
-    parser.add_argument('-S', '--severities', nargs='+', choices=list(severityGroupValues.keys()), 
-                        help=f'Filter by severity value.')
-    parser.add_argument('-x', '--hex',
-                        action='store_true', help='Display PEL(s) in hexdump instead of JSON')
+    parser.add_argument('-d', '--delete', dest='IDToDelete',
+                        metavar='<EID>', help='Delete a PEL based on its EID') 
+    parser.add_argument('-D', '--delete-all', dest='deleteAll', action='store_true',
+                        help='Delete all PELs')
+    parser.add_argument('-i', '--id', dest='pelID', metavar='<EID>',
+                        help='Display a PEL data based on its EID')
+    parser.add_argument('--bmc-id', dest='bmcID',
+                        metavar='<BMC_Event_Log_Id>',
+                        help='Display a PEL data based on its BMC Event Log ID')
+    parser.add_argument('--plid', dest='plID', metavar='<Platform_Log_Id>',
+                        help='Display PELs summary based on its Platform Log ID')
+    parser.add_argument('--src', dest='src', metavar='<System_Refrence_Code>',
+                        help='Display PELs summary based on its System Reference Code')
+    parser.add_argument('--src-exclude', dest='src_exclude_file',
+                        metavar='<SRC_Exclude_file>', help='Display PELs summary excluding SRCs from the file')
+    parser.add_argument('-x', '--hex', action='store_true',
+                        help='Display PEL(s) in hexdump instead of JSON')
+    parser.add_argument('-r', '--reverse', action='store_true',
+                        help='Reverse order of output')
+    parser.add_argument('-e', '--extension', dest='extension', metavar='<.extension>',
+                        help='Search only for files with the specified extension (e.g., ".pel", ".txt")')
 
-    if not inBMC:
-        parser.add_argument('-p', '--path',
-                        dest='path', help='Specify path to PELs')
-    else:
-        # peltool -A/--archive is specific to BMC only.
-        parser.add_argument('-A', '--archive',
-                        action='store_true', help='List or display archived PELs')
+    # Exclusive peltool options
+    pelExclusive = parser.add_argument_group('Exclusive options to get PELs',
+                                             'Use below options along with -l/--list, '
+                                             '-a/--all, -n/--show-pel-count options. '
+                                             'Check example usage')
+    pelExclusive.add_argument('-s', '--serviceable', action='store_true',
+                              help='Get Serviceable PELs')
+    pelExclusive.add_argument('-N', '--non-serviceable', action='store_true',
+                              help='Get Non-Serviceable PELs')
+    pelExclusive.add_argument('-H', '--hidden', action='store_true',
+                              help='Get hidden PELs')
+    pelExclusive.add_argument('-t', '--termination', dest='critSysTerm', action='store_true',
+                              help='Get critical system terminating PELs')
+    pelExclusive.add_argument('-S', '--severities', nargs='+',
+                              choices=list(severityGroupValues.keys()),
+                              help=f'Filter by severity value')
+    pelExclusive.add_argument('-O', '--only', action='store_true',
+                              help='Include only PELs that match the selected options')
+   
+    # JSON specific options
+    jsonPELsData = parser.add_argument_group('PEL data in JSON format',
+                                             'Use to get and store PEL data in '
+                                             'a JSON file/directory')
+    jsonPELsData.add_argument('-j', '--json', action='store_true',
+                              help='Process all files in a given input path or default PELs path '
+                              'and save as <filename>.json. Use -o to specify output directory')
+    jsonPELsData.add_argument('-o', '--output-dir', dest='output_dir',
+                              metavar='</path/to/put/processed/pel/json/files>',
+                              help='Stores the processed PEL JSON files in the specified output directory')
+    jsonPELsData.add_argument('-c', '--clean', dest='clean', action='store_true',
+                              help='Delete the original file after parsing')
 
     args = parser.parse_args()
 
