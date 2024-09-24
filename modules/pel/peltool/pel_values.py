@@ -191,7 +191,8 @@ actionFlagsValues = {
     0x1000: "Do Not Report To Hypervisor",
     0x0800: "HMC Call Home",
     0x0400: "Isolation Incomplete, further analysis required",
-    0x0100: "Service Processor Call Home Required"}
+    0x0100: "Service Processor Call Home Required",
+    0x0020: "Heartbeat Call Home Event"}
 
 """
 Map for transmission states
