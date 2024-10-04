@@ -46,6 +46,28 @@ The `-p` option can be used to skip loading any plugin modules.
 The `-s` option can be used to only parse PELs if they are for serviceable
 errors, while the `-n` option will only parse PELs for non-serviceable ones.
 
+### Installation
+
+Instruction to install in debian based systems, for example:
+
+If `setuptools` is missing, use this following command to install it.
+```bash
+$ sudo apt-get install python3-setuptools
+```
+The following command can be used for a Regular Installation.
+```bash
+$ python3 setup.py install
+```
+
+If `pip3` is missing, use this following command to install it.
+```bash
+$ sudo apt install python3-pip
+```
+The following command can be used for a [Developer Mode](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-e) Installation. It means changes to the source code will be immediately reflected without needing to reinstall.
+```bash
+$ pip3 install -e .
+```
+
 ## SRC and user data parsers for OpenPOWER PELs
 
 The parsers are made up of python modules which are packaged together with
