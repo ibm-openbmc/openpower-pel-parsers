@@ -40,7 +40,7 @@ def generatePH(stream: DataStream, out: OrderedDict) -> (bool, PrivateHeader):
     sectionID, sectionLen, versionID, subType, componentID = parseHeader(
         stream)
     if sectionID != SectionID.privateHeader.value:
-        print("Failed to parse Private Header, section ID = %x" % (sectionID))
+        print("Failed to parse Private Header, section ID = %x" % (sectionID), file=sys.stderr)
         return False, None
 
     ph = PrivateHeader(stream, sectionID, sectionLen,
@@ -53,7 +53,7 @@ def generateUH(stream: DataStream, creatorID: str, out: OrderedDict) -> (bool, U
     sectionID, sectionLen, versionID, subType, componentID = parseHeader(
         stream)
     if sectionID != SectionID.userHeader.value:
-        print("Failed to parse User Header, section ID = %d" % (sectionID))
+        print("Failed to parse User Header, section ID = %d" % (sectionID), file=sys.stderr)
         return False, None
 
     uh = UserHeader(stream, sectionID, sectionLen,
@@ -340,7 +340,7 @@ def parseAndWriteOutput(file: str, output_dir: str, config: Config,
             else:
                 print(f"No PEL parsed for {file}")
         except Exception as e:
-            print(f"No PEL parsed for {file}: {e}")
+            print(f"No PEL parsed for {file}: {e}", file=sys.stderr)
 
 
 def deleteAllPELs(path: str) -> None:
@@ -409,7 +409,7 @@ def parseAndPrintPELFile(file_path: str, config: Config, exit_on_error: bool) ->
                 else:
                     printPELInHexFormat(data)
     except Exception as e:
-        print(f"Exception: No PEL parsed for {file_path}: {e}")
+        print(f"Exception: No PEL parsed for {file_path}: {e}", file=sys.stderr)
 
 
 def parsePelFromID(path: str, config: Config) -> None:
@@ -459,7 +459,7 @@ def parsePelFromBmcID(path: str, config: Config) -> None:
                         foundID = True
                         break
             except Exception as e:
-                print(f"Exception: Could not read PEL file {file}: {e}")
+                print(f"Exception: Could not read PEL file {file}: {e}", file=sys.stderr)
         # Only process top level directory
         break
     if not foundID:
@@ -488,7 +488,7 @@ def parsePelFromPLID(path: str, config: Config):
                         else:
                             final_summary[eid] = summary
             except Exception as e:
-                print(f"Exception: No PEL parsed for {file}: {e}")
+                print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
@@ -529,7 +529,7 @@ def parsePelFromSRCID(path: str, config: Config):
                                 final_summary[eid] = summary
 
             except Exception as e:
-                print(f"Exception: No PEL parsed for {file}: {e}")
+                print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
@@ -587,7 +587,7 @@ def extractAndSummarizePEL(file: str, config: Config):
                 else:
                     return eid, summary
         except Exception as e:
-            print(f"Exception: No PEL parsed for {file}: {e}")
+            print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
     return "", ""
 
 
@@ -638,7 +638,7 @@ def extractAllPELsData(path: str, config: Config):
                     else:
                         printPELInHexFormat(data)
             except Exception as e:
-                print(f"Exception: No PEL parsed for {file}: {e}")
+                print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
     if not config.hex:
         allPELsData = allPELsData[:-2] + "\n]"
         print(allPELsData)
@@ -659,7 +659,7 @@ def printPELInHexFormat(data: memoryview) -> None:
             print(line)
         print("-------------- PEL End    ----------------")
     except Exception as e:
-        print(f"Exception: No PEL parsed for {file}: {e}")
+        print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
 
 
 def printPELCount(path: str, config: Config):
@@ -686,7 +686,7 @@ def printPELCount(path: str, config: Config):
                     continue
                 count+= 1
             except Exception as e:
-                print(f"Exception: No PEL parsed for {file}: {e}")
+                print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
     print("{\n    \"Number of PELs found\": "+str(count)+"\n}")
 
 
