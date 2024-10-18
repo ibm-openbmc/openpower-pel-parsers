@@ -625,7 +625,9 @@ def extractAllPELsData(path: str, config: Config):
     Prints a JSON-formatted string containing PEL data from all valid files.
     """
     root, file_list = getFileList(path, config.extension, config.rev)
-    allPELsData = "[ \n"
+    if not config.hex:
+        print("[")
+    firstPELPrinted = False
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
             data = fd.read()
@@ -634,14 +636,18 @@ def extractAllPELsData(path: str, config: Config):
                 _, json_string = parsePEL(stream, config, False)
                 if json_string:
                     if not config.hex:
-                        allPELsData = allPELsData + json_string + ",\n"
+                        if firstPELPrinted:
+                            print(",")
+                        print(json_string, end = "")
+                        firstPELPrinted = True
                     else:
                         printPELInHexFormat(data)
             except Exception as e:
                 print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
     if not config.hex:
-        allPELsData = allPELsData[:-2] + "\n]"
-        print(allPELsData)
+        if firstPELPrinted:
+            print()
+        print("]")
 
 
 def printPELInHexFormat(data: memoryview) -> None:
