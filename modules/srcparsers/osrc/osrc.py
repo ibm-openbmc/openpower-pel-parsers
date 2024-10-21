@@ -1,6 +1,7 @@
 import importlib
 import json
 
+osrcParsers = {}
 
 def parseSRCToJson(refcode: str,
                    word2: str, word3: str, word4: str, word5: str,
@@ -39,18 +40,26 @@ def parseSRCToJson(refcode: str,
         module_name = '.'.join(['srcparsers', name, name])
 
     try:
-        # Grab the module if it exist. If not, it will throw an exception.
-        module = importlib.import_module(module_name)
-
+        if module_name in osrcParsers:
+            module = osrcParsers[module_name]
+        else:
+            # Grab the module if it exist. If not, it will throw an exception.
+            module = importlib.import_module(module_name)
+            osrcParsers[module_name] = module
     except ModuleNotFoundError:
+        osrcParsers[module_name] = None
         # The module does not exist. No need to parse the SRC. Using
         # 'json.dumps()' here so that it returns the JSON 'null' value.
         out = json.dumps(None)
 
     else:
-        # The module was found. Call the component parser in that module.
-        out = module.parseSRCToJson(refcode,
-                                    word2, word3, word4, word5,
-                                    word6, word7, word8, word9)
+        if module is None:
+            # The module, which was previously checked, is not found.
+            out = json.dumps(None)
+        else:
+            # The module was found. Call the component parser in that module.
+            out = module.parseSRCToJson(refcode,
+                                        word2, word3, word4, word5,
+                                        word6, word7, word8, word9)
 
     return out
