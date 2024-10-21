@@ -1,27 +1,37 @@
 from pel.peltool.pel_values import creatorIDs
 import os
 import json
+import sys
 
 componentIDs = {}
 
+pelConfigRootPath = "/usr/share/phosphor-logging/pels"
+attemptedToParseCompIDs = False
 
-def getCompIDFilePath(creatorID: str) -> str:
-    """
-    Returns the file path to look up the component ID in.
-    The pel_registry module isn't available on the BMC,
-    so just look in /usr/share/... if that module isn't present.
-    """
-    try:
-        import pel_registry
-        file = pel_registry.get_comp_id_file_path(creatorID)
-    except ModuleNotFoundError:
-        # Use the BMC path
-        basePath = '/usr/share/phosphor-logging/pels/'
-        name = creatorID + '_component_ids.json'
-        file = os.path.join(os.path.join(basePath, name))
+def getAllCreatorsCompIDs():
+    global attemptedToParseCompIDs
+    if attemptedToParseCompIDs:
+        return
 
-    return file
+    attemptedToParseCompIDs = True
+    componentsConfigPath = ""
+    if os.path.exists(pelConfigRootPath): # BMC env
+        componentsConfigPath = pelConfigRootPath
+    else: # Non-BMC env
+        try:
+            import pel_registry
+            componentsConfigPath = os.path.dirname(pel_registry.__file__)
+        except ModuleNotFoundError:
+            print("Failed to find PEL creators components config file", file=sys.stderr)
+            return
 
+    componentIDFileSuffix = "_component_ids.json"
+    for file in os.listdir(componentsConfigPath):
+        if componentIDFileSuffix not in file:
+            continue
+        with open(os.path.join(componentsConfigPath, file), 'r') as fileFd:
+            creatorID = file[0:file.find(componentIDFileSuffix)]
+            componentIDs[creatorID] = json.load(fileFd)
 
 def getDisplayCompID(componentID: int, creatorID: str) -> str:
     """
@@ -39,14 +49,11 @@ def getDisplayCompID(componentID: int, creatorID: str) -> str:
         return "{:04X}".format(componentID)
 
     # try the comp IDs file named after the creator ID
-    if creatorID not in componentIDs:
-        compIDFile = getCompIDFilePath(creatorID)
-        if os.path.exists(compIDFile):
-            with open(compIDFile, 'r') as file:
-                componentIDs[creatorID] = json.load(file)
+    if not componentIDs:
+        getAllCreatorsCompIDs()
 
-    compIDStr = '{:04X}'.format(componentID).upper()
-    if creatorID in componentIDs and compIDStr in componentIDs[creatorID]:
+    compIDStr = '{:04X}'.format(componentID)
+    if creatorID in componentIDs and compIDStr.upper() in componentIDs[creatorID]:
         return componentIDs[creatorID][compIDStr]
 
-    return "{:04X}".format(componentID)
+    return compIDStr
