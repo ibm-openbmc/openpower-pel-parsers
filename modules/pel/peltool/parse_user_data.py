@@ -3,7 +3,9 @@ from pel.peltool.config import Config
 from pel.hexdump import hexdump
 from enum import Enum, unique
 import json
+import importlib
 
+userDataParsers = {}
 
 @unique
 class UserDataFormat(Enum):
@@ -59,14 +61,23 @@ class ParseUserData:
         return value
 
     def parseCustom(self) -> str:
-        import importlib
         name = (self.creatorID.lower() + "%04X" % self.compID).lower()
+        userDataParserMod = "udparsers." + name + "." + name
         try:
-            cls = importlib.import_module("udparsers." + name + "." + name)
+            if userDataParserMod in userDataParsers:
+                cls = userDataParsers[userDataParserMod]
+            else:
+                cls = importlib.import_module(userDataParserMod)
+                userDataParsers[userDataParserMod] = cls
             if self.data:
                 mv = memoryview(self.data)
-                return cls.parseUDToJson(self.subType, self.version, mv)
+                if cls is None:
+                    # The module, which was previously checked, is not found.
+                    return json.dumps(hexdump(mv))
+                else:
+                    return cls.parseUDToJson(self.subType, self.version, mv)
         except ImportError:
+            userDataParsers[userDataParserMod] = None
             # No print for informational purposes, this is encountered often, e.g. PHYP
             if self.data:
                 mv = memoryview(self.data)

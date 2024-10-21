@@ -9,7 +9,11 @@ from pel.peltool.comp_id import getDisplayCompID
 from pel.peltool.config import Config
 import json
 import sys
+import importlib
 
+registry = Registry()
+calloutParsers = {}
+srcParsers = {}
 
 @unique
 class HeaderFlags(Enum):
@@ -208,7 +212,6 @@ class SRC:
 
     def getErrorDetails(self, out: OrderedDict, code: str, srcType: str):
         code = "0x" + code
-        registry = Registry()
         details = registry.getErrorMessage(code, srcType)
 
         od = OrderedDict()
@@ -227,14 +230,22 @@ class SRC:
         (X = creator ID in lower case)
         """
         try:
-            import importlib
             name = self.creatorID.lower() + "callouts"
-            cls = importlib.import_module(
-                "calloutparsers." + name + "." + name)
+            calloutParserMod = "calloutparsers." + name + "." + name
+            if calloutParserMod in calloutParsers:
+                cls = calloutParsers[calloutParserMod]
+                if cls is None:
+                    # The module, which was previously checked, is not found.
+                    return
+            else:
+                cls = importlib.import_module(calloutParserMod)
+                calloutParsers[calloutParserMod] = cls
+
             desc = cls.getMaintProcDesc(procName)
             if desc:
                 out["Description"] = json.loads(desc)
         except:
+            calloutParsers[calloutParserMod] = None
             pass
 
     def getCallouts(self, out: OrderedDict, config: Config):
@@ -295,10 +306,18 @@ class SRC:
             exit(1)
 
         name = self.creatorID.lower() + "src"
+        srcParserMod = "srcparsers." + name + "." + name
         try:
-            import importlib
-            cls = importlib.import_module("srcparsers." + name + "." + name)
+            if srcParserMod in srcParsers:
+                cls = srcParsers[srcParserMod]
+                if cls is None:
+                    # The module, which was previously checked, is not found.
+                    return ""
+            else:
+                cls = importlib.import_module(srcParserMod)
+                srcParsers[srcParserMod] = cls
         except:
+            srcParsers[srcParserMod] = None
             return ""
 
         try:
