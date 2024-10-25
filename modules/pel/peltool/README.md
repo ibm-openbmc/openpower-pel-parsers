@@ -9,6 +9,7 @@ To see all of peltool's capabilities, use the help option `peltool.py --help`.
 ## List PELs
 
 - Get list of PELs: `peltool.py -l` (By default serviceable PELs are listed)
+- Get list of all PEL irrespective of PEL type: `peltool.py -lE`
 - Get list of PELs including non-serviceable PELs: `peltool.py -lN`
 - Get list of PELs including hidden PELs: `peltool.py -lH`
 - Get list of PELs including terminating PELs: `peltool.py -lt`
@@ -25,6 +26,7 @@ To see all of peltool's capabilities, use the help option `peltool.py --help`.
 ## Show PEL Count
 
 - Get PEL count: `peltool.py -n` (By default serviceable PELs count is given)
+- Get all PEL count irrespective of PEL type: `peltool.py -nE`
 - Get PEL count including non-serviceable PELs: `peltool.py -nN`
 - Get PEL count including hidden PELs: `peltool.py -nH`
 - Get PEL count including terminating PELs: `peltool.py -nt`
@@ -41,6 +43,7 @@ To see all of peltool's capabilities, use the help option `peltool.py --help`.
 ## Display all PEL data
 
 - Get all PEL data: `peltool.py -a` (By default serviceable PELs data are displayed)
+- Get all PEL data irrespective of PEL type: `peltool.py -aE`
 - Get all PEL data including hidden PELs: `peltool.py -aH`
 - Get all PEL data including terminating PELs: `peltool.py -at`
 - Get all PEL data for serviceable, non-serviceable, and hidden PELs: `peltool.py -asNH`
