@@ -219,6 +219,9 @@ def considerPEL(uh: UserHeader, config: Config) -> bool:
     Returns True if the PEL should be considered, False otherwise.
     """
 
+    if config.every_pel:
+        return True
+
     if config.critSysTerm and uh.eventSeverity == SeverityValues.critSysTermSeverity.value:
         return True
 
@@ -729,6 +732,7 @@ def main():
 
         List servicable PELs: {0} -l
         List informational PELs along with serviceable PELs: {0} -l -S Informational
+        List every PEL irrespective of its type: {0} -l -E
         List only hidden PELs: {0} -l -H -O
         List only unrecoverable PELs: {0} -l -O -S Unrecoverable
         Count only hidden PELs: {0} -n -H -O
@@ -789,6 +793,8 @@ def main():
                                              'Use below options along with -l/--list, '
                                              '-a/--all, -n/--show-pel-count options. '
                                              'Check example usage')
+    pelExclusive.add_argument('-E', '--every-pel', action='store_true',
+                              help='Operate on every single PEL')
     pelExclusive.add_argument('-s', '--serviceable', action='store_true',
                               help='Get Serviceable PELs')
     pelExclusive.add_argument('-N', '--non-serviceable', action='store_true',
@@ -837,6 +843,9 @@ def main():
 
     if args.only:
         config.only = True
+
+    if args.every_pel:
+        config.every_pel = True
 
     if args.severities:
         config.severities.extend(severityGroupValues[sev] for sev in args.severities)

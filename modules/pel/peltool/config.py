@@ -7,6 +7,7 @@ class Config:
         self.allow_plugins = True
         self.serviceable = False
         self.non_serviceable = False
+        self.every_pel = False
         self.critSysTerm = False
         self.hidden = False
         self.hex = False
