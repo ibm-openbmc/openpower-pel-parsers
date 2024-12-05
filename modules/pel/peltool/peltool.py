@@ -5,6 +5,7 @@ import sys
 import os
 import json
 import argparse
+import syslog
 from pel.datastream import DataStream
 from collections import OrderedDict
 from pel.peltool.private_header import PrivateHeader
@@ -351,6 +352,7 @@ def deleteAllPELs(path: str) -> None:
     Delete all files in given path
     Returns: None
     """
+    syslog.syslog(syslog.LOG_INFO, 'peltool deleting all event logs')
     root = ""
     for root, _, files in os.walk(path):
         for file in files:
