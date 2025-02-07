@@ -862,6 +862,7 @@ def main():
         config.extension = args.extension
 
     if args.file:
+        config.every_pel = True
         parseAndPrintPELFile(args.file, config, True)
         if args.clean:
             os.remove(args.file)
