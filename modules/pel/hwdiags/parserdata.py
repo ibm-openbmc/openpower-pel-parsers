@@ -101,14 +101,16 @@ class ParserData:
         except KeyError:
             chip_type = "unknown"
 
-        # Extract chip description.
-        try:
-            chip_desc = self._data[model_ec]["model_ec"]["desc"]
-        except KeyError:
-            chip_desc = model_ec.upper()
+        # Using the model_ec value instead of the chip description to avoid
+        # exposing internal code words.
+        chip_desc = model_ec.upper()
 
-        return "node %d %s %d (%s)" % (node_pos, chip_type, chip_pos, chip_desc)
-
+        return "node %d %s %d (0x%s)" % (
+            node_pos,
+            chip_type,
+            chip_pos,
+            chip_desc,
+        )
 
     def get_sig_desc(self, model_ec: str, sig_id: str, sig_inst: int,
                      sig_bit: int) -> str:
