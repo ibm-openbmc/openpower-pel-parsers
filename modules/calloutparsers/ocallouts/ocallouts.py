@@ -37,6 +37,18 @@ procedures = {
     ],
     "BMC0009": [
         "CEC node does not have input power."
+    ],
+
+    "BMC000A": [
+        "A BMC failover was blocked."
+    ],
+
+    "BMC000B": [
+        "BMC redundancy cannot be enabled."
+    ],
+
+    "BMC000C": [
+        "The BMC must be passive due to an error."
     ]
 }
 
