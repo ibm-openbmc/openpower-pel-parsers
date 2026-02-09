@@ -34,6 +34,9 @@ procedures = {
 
     "BMC0008": [
         "Failed parts present in the system. Service needed"
+    ],
+    "BMC0009": [
+        "CEC node does not have input power."
     ]
 }
 
