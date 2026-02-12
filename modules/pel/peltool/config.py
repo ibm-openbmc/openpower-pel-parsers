@@ -21,3 +21,4 @@ class Config:
         self.pelID = None
         self.srcExcludeFile = None
         self.compact = False
+        self.recent = None
