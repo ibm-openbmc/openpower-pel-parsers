@@ -20,3 +20,4 @@ class Config:
         self.bmcID = None
         self.pelID = None
         self.srcExcludeFile = None
+        self.compact = False

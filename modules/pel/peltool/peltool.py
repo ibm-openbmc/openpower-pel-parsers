@@ -613,7 +613,68 @@ def getFileList(path: str, extension: str, rev: bool = False):
     file_list.sort(reverse=rev)
     return root, file_list
 
+def listCompactOption(path: str, config: Config):
+    """
+    List PELs in compact format as a JSON array of strings.
+    First entry is the header: "EID | SRC | Commit Time | Message"
+    Subsequent entries contain: "error-id | <SRC> | <date> | <Message if present>"
+    Returns: None
+    Prints a JSON array of compact PEL summaries with aligned columns.
+    """
+    root, file_list = getFileList(path, config.extension, config.rev)
+    data_rows = []
+    
+    # Collect all data first
+    for file in file_list:
+        eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
+        if eid:
+            # Extract the fields for compact format
+            error_id = eid if eid.startswith("0x") else f"0x{eid}"
+            src = summary.get("SRC", "")
+            date = summary.get("Commit Time", "")
+            message = summary.get("Message", "")
+            
+            data_rows.append({
+                'eid': error_id,
+                'src': src,
+                'date': date,
+                'message': message
+            })
+    
+    # Only add header and output if there are entries
+    if data_rows:
+        # Calculate maximum width for each column
+        max_eid = max(len(row['eid']) for row in data_rows)
+        max_eid = max(max_eid, len("EID"))
+        
+        max_src = max(len(row['src']) for row in data_rows)
+        max_src = max(max_src, len("SRC"))
+        
+        max_date = max(len(row['date']) for row in data_rows)
+        max_date = max(max_date, len("Commit Time"))
+        
+        # Format header with proper alignment
+        header = f"{('EID').ljust(max_eid)} | {('SRC').ljust(max_src)} | {('Commit Time').ljust(max_date)} | Message"
+        
+        # Format data rows with proper alignment
+        compact_entries = [header]
+        for row in data_rows:
+            entry = f"{row['eid'].ljust(max_eid)} | {row['src'].ljust(max_src)} | {row['date'].ljust(max_date)} | {row['message']}"
+            compact_entries.append(entry)
+        
+        # Output as JSON array
+        print(json.dumps(compact_entries, indent=2))
+    else:
+        # Output empty array if no entries
+        print("[]")
+
+
 def listOption(path: str, config: Config):
+    # Check if compact mode is enabled
+    if config.compact:
+        listCompactOption(path, config)
+        return
+    
     root, file_list = getFileList(path, config.extension, config.rev)
     final_summary = {}
     for file in file_list:
@@ -733,6 +794,7 @@ def main():
         -------------------------
 
         List servicable PELs: {0} -l
+        List PELs in compact format: {0} -l -C
         List informational PELs along with serviceable PELs: {0} -l -S Informational
         List every PEL irrespective of its type: {0} -l -E
         List only hidden PELs: {0} -l -H -O
@@ -764,6 +826,8 @@ def main():
 
     parser.add_argument('-l', '--list', action='store_true',
                         help='List PELs')
+    parser.add_argument('-C', '--compact', action='store_true',
+                        help='Display PEL list in compact format (use with -l/--list)')
     parser.add_argument('-a', '--all-pels', dest='all', action='store_true',
                         help='Display all PELs data')
     parser.add_argument('-n', '--show-pel-count', dest='show_pel_count',
@@ -860,6 +924,9 @@ def main():
 
     if args.extension:
         config.extension = args.extension
+
+    if args.compact:
+        config.compact = True
 
     if args.file:
         config.every_pel = True
