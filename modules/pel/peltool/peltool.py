@@ -771,7 +771,7 @@ def printPELInHexFormat(data: memoryview) -> None:
             print(line)
         print("-------------- PEL End    ----------------")
     except Exception as e:
-        print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
+        print(f"Exception during hexdump: {e}", file=sys.stderr)
 
 
 def printPELCount(path: str, config: Config):
