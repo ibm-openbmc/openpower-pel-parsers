@@ -538,6 +538,39 @@ def parsePelFromSRCID(path: str, config: Config):
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
+def parsePelFromRecent(path: str, config: Config) -> None:
+    """
+    Display the Nth most recent PEL based on the same ordering algorithm used for listing PELs.
+    The value of N is specified in config.recent (0 = most recent, 1 = second most recent, etc.)
+    Respects all filtering options (severity, serviceable, hidden, etc.) and the reverse flag.
+    Returns: None
+    """
+    if config.recent is None or config.recent < 0:
+        sys.exit("Invalid value for --display-recent. Please provide a non-negative integer (0 = most recent, 1 = second most recent, etc.)")
+    
+    # Get the sorted file list using the same algorithm as list operations
+    root, file_list = getFileList(path, config.extension, config.rev)
+    
+    matching_files = []
+    for file in file_list:
+        eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
+        if eid:  # This means the PEL passed all filters
+            matching_files.append(file)
+    
+    if len(matching_files) == 0:
+        print("No PELs found matching the specified criteria")
+        return
+    
+    if config.recent >= len(matching_files):
+        sys.exit(f"Requested PEL index {config.recent} but only {len(matching_files)} PEL(s) found matching the criteria (valid indices: 0-{len(matching_files)-1})")
+        return
+    
+    # Get the Nth most recent file
+    # Files are sorted oldest-first by default, so we need to index from the end
+    selected_file = matching_files[-(config.recent + 1)]
+    
+    parseAndPrintPELFile(os.path.join(root, selected_file), config, False)
+
 
 def parsePELSummary(stream: DataStream, config: Config):
     """
@@ -613,7 +646,68 @@ def getFileList(path: str, extension: str, rev: bool = False):
     file_list.sort(reverse=rev)
     return root, file_list
 
+def listCompactOption(path: str, config: Config):
+    """
+    List PELs in compact format as a JSON array of strings.
+    First entry is the header: "EID | SRC | Commit Time | Message"
+    Subsequent entries contain: "error-id | <SRC> | <date> | <Message if present>"
+    Returns: None
+    Prints a JSON array of compact PEL summaries with aligned columns.
+    """
+    root, file_list = getFileList(path, config.extension, config.rev)
+    data_rows = []
+    
+    # Collect all data first
+    for file in file_list:
+        eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
+        if eid:
+            # Extract the fields for compact format
+            error_id = eid if eid.startswith("0x") else f"0x{eid}"
+            src = summary.get("SRC", "")
+            date = summary.get("Commit Time", "")
+            message = summary.get("Message", "")
+            
+            data_rows.append({
+                'eid': error_id,
+                'src': src,
+                'date': date,
+                'message': message
+            })
+    
+    # Only add header and output if there are entries
+    if data_rows:
+        # Calculate maximum width for each column
+        max_eid = max(len(row['eid']) for row in data_rows)
+        max_eid = max(max_eid, len("EID"))
+        
+        max_src = max(len(row['src']) for row in data_rows)
+        max_src = max(max_src, len("SRC"))
+        
+        max_date = max(len(row['date']) for row in data_rows)
+        max_date = max(max_date, len("Commit Time"))
+        
+        # Format header with proper alignment
+        header = f"{('EID').ljust(max_eid)} | {('SRC').ljust(max_src)} | {('Commit Time').ljust(max_date)} | Message"
+        
+        # Format data rows with proper alignment
+        compact_entries = [header]
+        for row in data_rows:
+            entry = f"{row['eid'].ljust(max_eid)} | {row['src'].ljust(max_src)} | {row['date'].ljust(max_date)} | {row['message']}"
+            compact_entries.append(entry)
+        
+        # Output as JSON array
+        print(json.dumps(compact_entries, indent=2))
+    else:
+        # Output empty array if no entries
+        print("[]")
+
+
 def listOption(path: str, config: Config):
+    # Check if compact mode is enabled
+    if config.compact:
+        listCompactOption(path, config)
+        return
+    
     root, file_list = getFileList(path, config.extension, config.rev)
     final_summary = {}
     for file in file_list:
@@ -733,6 +827,7 @@ def main():
         -------------------------
 
         List servicable PELs: {0} -l
+        List PELs in compact format: {0} -l -C
         List informational PELs along with serviceable PELs: {0} -l -S Informational
         List every PEL irrespective of its type: {0} -l -E
         List only hidden PELs: {0} -l -H -O
@@ -743,6 +838,10 @@ def main():
         Display recovered PELs along with serviceable PELs data: {0} -a -S Recovered
         Display only hidden PELs data: {0} -a -H -O
         Display only critical PELs data: {0} -a -O -S Critical
+        Display the most recent serviceable PEL: {0} -R 0
+        Display the most recent PEL of irrespective of its type: {0} -R 0 -E
+        Display the 3rd most recent serviceable PEL: {0} -R 2
+        Display the oldest serviceable PEL (using reverse order): {0} -R 0 -r
         '''.format(peltool_cmd)
 
     parser = argparse.ArgumentParser(formatter_class=CustomFormatter,
@@ -764,6 +863,8 @@ def main():
 
     parser.add_argument('-l', '--list', action='store_true',
                         help='List PELs')
+    parser.add_argument('-C', '--compact', action='store_true',
+                        help='Display PEL list in compact format (use with -l/--list)')
     parser.add_argument('-a', '--all-pels', dest='all', action='store_true',
                         help='Display all PELs data')
     parser.add_argument('-n', '--show-pel-count', dest='show_pel_count',
@@ -783,6 +884,8 @@ def main():
                         help='Display PELs summary based on its System Reference Code')
     parser.add_argument('--src-exclude', dest='src_exclude_file',
                         metavar='<SRC_Exclude_file>', help='Display PELs summary excluding SRCs from the file')
+    parser.add_argument('-R', '--display-recent', dest='recent', metavar='<N>', type=int,
+                        help='Display the Nth most recent PEL (0 = most recent, 1 = second most recent, etc.)')
     parser.add_argument('-x', '--hex', action='store_true',
                         help='Display PEL(s) in hexdump instead of JSON')
     parser.add_argument('-r', '--reverse', action='store_true',
@@ -861,6 +964,25 @@ def main():
     if args.extension:
         config.extension = args.extension
 
+    if args.compact:
+        config.compact = True
+
+    # Validate mutually exclusive display mode options
+    display_modes = []
+    if args.recent is not None:
+        display_modes.append(('-R/--display-recent', args.recent))
+        config.recent = args.recent
+    if args.list:
+        display_modes.append(('-l/--list', True))
+    if args.all:
+        display_modes.append(('-a/--all-pels', True))
+    if args.show_pel_count:
+        display_modes.append(('-n/--show-pel-count', True))
+    
+    if len(display_modes) > 1:
+        mode_names = [mode[0] for mode in display_modes]
+        sys.exit(f"Error: Cannot use multiple display modes together: {', '.join(mode_names)}. Choose only one.")
+
     if args.file:
         config.every_pel = True
         parseAndPrintPELFile(args.file, config, True)
@@ -922,6 +1044,10 @@ def main():
         if not os.path.isfile(config.srcExcludeFile):
             sys.exit(f"Input {config.srcExcludeFile} file doesn't exist!")
         parsePelFromSRCID(PELsPath, config)
+        sys.exit(0)
+
+    if args.recent is not None:
+        parsePelFromRecent(PELsPath, config)
         sys.exit(0)
 
     if args.list:
