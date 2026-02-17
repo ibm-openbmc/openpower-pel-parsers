@@ -563,9 +563,16 @@ def parsePELSummary(stream: DataStream, config: Config):
         sectionFun(stream, section_json, sectionID, sectionLen,
                    versionID, subType, componentID, ph.creatorID, config)
         if sectionID == SectionID.primarySRC.value:
-            summary["SRC"] = section_json["Primary SRC"]["Reference Code"]
-            if "Error Details" in section_json["Primary SRC"] :
-                summary["Message"] = section_json["Primary SRC"]["Error Details"]["Message"]
+            primary_src = section_json.get("Primary SRC", {})
+            summary["SRC"] = primary_src.get("Reference Code", "")
+
+            # BMC uses Error Details/Message, hostboot uses SRC Details/devdesc
+            error_details = primary_src.get("Error Details", {})
+            src_details = primary_src.get("SRC Details", {})
+            message = error_details.get("Message") or src_details.get("devdesc")
+
+            if message:
+                summary["Message"] = message
             break
     summary["PLID"] = ph.pLID
     summary["CreatorID"] = out["Private Header"]["Creator Subsystem"]
