@@ -22,3 +22,4 @@ class Config:
         self.srcExcludeFile = None
         self.compact = False
         self.recent = None
+        self.creator_ids = []

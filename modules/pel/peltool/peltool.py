@@ -214,11 +214,41 @@ def considerPELIfSeverityMatches(uh: UserHeader, config: Config) -> bool:
             return True
     return False
 
-def considerPEL(uh: UserHeader, config: Config) -> bool:
+def matchCreatorID(ph_creator_id: str, filter_values: list) -> bool:
+    """
+    Match creator ID based on filter values.
+    - If filter is 1 char: case-insensitive match against creatorIDs keys
+    - If filter is multi-char: case-insensitive match against creatorIDs values
+    
+    Args:
+        ph_creator_id: Creator ID from PrivateHeader (single char like "B", "O")
+        filter_values: List of user-provided filter values
+    
+    Returns:
+        True if matches any filter value, False otherwise
+    """
+    from pel.peltool.pel_values import creatorIDs
+    
+    for filter_value in filter_values:
+        if len(filter_value) == 1:
+            if ph_creator_id.upper() == filter_value.upper():
+                return True
+        else:
+            creator_name = creatorIDs.get(ph_creator_id, "")
+            if creator_name.lower() == filter_value.lower():
+                return True
+    return False
+
+def considerPEL(uh: UserHeader, ph, config: Config) -> bool:
     """
     Evaluates whether a PEL meets criteria based on given option(s).
     Returns True if the PEL should be considered, False otherwise.
     """
+
+    # Check creator ID filter first (applies even with --every-pel)
+    if config.creator_ids:
+        if not matchCreatorID(ph.creatorID, config.creator_ids):
+            return False
 
     if config.every_pel:
         return True
@@ -305,7 +335,7 @@ def parsePEL(stream: DataStream, config: Config, exit_on_error: bool):
         else:
             return "", ""
 
-    if not considerPEL(uh, config):
+    if not considerPEL(uh, ph, config):
         return "", ""
 
     section_jsons = []
@@ -586,7 +616,7 @@ def parsePELSummary(stream: DataStream, config: Config):
     ret, uh = generateUH(stream, ph.creatorID, out)
     if ret is False:
         return "", ""
-    if not considerPEL(uh, config):
+    if not considerPEL(uh, ph, config):
         return "", ""
 
     summary = OrderedDict()
@@ -771,7 +801,7 @@ def printPELInHexFormat(data: memoryview) -> None:
             print(line)
         print("-------------- PEL End    ----------------")
     except Exception as e:
-        print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
+        print(f"Exception during hexdump: {e}", file=sys.stderr)
 
 
 def printPELCount(path: str, config: Config):
@@ -794,7 +824,7 @@ def printPELCount(path: str, config: Config):
                 ret, uh = generateUH(stream, ph.creatorID, out)
                 if not ret:
                     continue
-                if not considerPEL(uh, config):
+                if not considerPEL(uh, ph, config):
                     continue
                 count+= 1
             except Exception as e:
@@ -839,12 +869,15 @@ def main():
         List every PEL irrespective of its type: {0} -l -E
         List only hidden PELs: {0} -l -H -O
         List only unrecoverable PELs: {0} -l -O -S Unrecoverable
+        List only BMC PELs (by name): {0} -l -I bmc
+        List only BMC and Hostboot PELs: {0} -l -I bmc hostboot
         Count only hidden PELs: {0} -n -H -O
         Count only predictive PELs: {0} -n -O -S Predictive
         Display servicable PELs data: {0} -a
         Display recovered PELs along with serviceable PELs data: {0} -a -S Recovered
         Display only hidden PELs data: {0} -a -H -O
         Display only critical PELs data: {0} -a -O -S Critical
+        Display all Hostboot PELs: {0} -aE -I hostboot
         Display the most recent serviceable PEL: {0} -R 0
         Display the most recent PEL of irrespective of its type: {0} -R 0 -E
         Display the 3rd most recent serviceable PEL: {0} -R 2
@@ -909,7 +942,7 @@ def main():
                                              '-a/--all, -n/--show-pel-count options. '
                                              'Check example usage')
     pelExclusive.add_argument('-E', '--every-pel', action='store_true',
-                              help='Operate on every single PEL')
+                              help='Operate on every single PEL, though still obeys --creator-id')
     pelExclusive.add_argument('-s', '--serviceable', action='store_true',
                               help='Get Serviceable PELs')
     pelExclusive.add_argument('-N', '--non-serviceable', action='store_true',
@@ -921,6 +954,14 @@ def main():
     pelExclusive.add_argument('-S', '--severities', nargs='+',
                               choices=list(severityGroupValues.keys()),
                               help=f'Filter by severity value')
+    
+    from pel.peltool.pel_values import creatorIDs
+    creator_names = ', '.join([f"{k}={v}" for k, v in sorted(creatorIDs.items())])
+    pelExclusive.add_argument('-I', '--creator-id', dest='creator_ids', nargs='+',
+                              metavar='<creator_id>',
+                              help=f'Filter PELs by creator ID(s). Can specify multiple values. '
+                                   f'Either char (e.g. B O) or string (e.g. hostboot bmc). '
+                                   f'Available: {creator_names}')
     pelExclusive.add_argument('-O', '--only', action='store_true',
                               help='Include only PELs that match the selected options')
    
@@ -976,6 +1017,9 @@ def main():
 
     if args.compact:
         config.compact = True
+
+    if args.creator_ids:
+        config.creator_ids = args.creator_ids
 
     if args.recent is not None:
         config.recent = args.recent
