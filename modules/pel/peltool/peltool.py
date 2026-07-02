@@ -568,6 +568,38 @@ def parsePelFromSRCID(path: str, config: Config):
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
+def parsePelDataFromSRCID(path: str, config: Config):
+    """
+    Parse and display PELs and complete data matching with the input SRC ID from the specified directory.
+    Returns: None
+    Prints a JSON-formatted string containing valid PELs and the data in the specified directory.
+    """
+    if config.src:
+        if len(config.src) > 32:
+            sys.exit('Invalid SRC length is provided!')
+
+    root, file_list = getFileList(path, config.extension, config.rev)
+    final_data = {}
+    for file in file_list:
+        with open(os.path.join(root, file), 'rb') as fd:
+            data = fd.read()
+            stream = DataStream(data, byte_order='big', is_signed=False)
+            try:
+                eid, json_string = parsePEL(stream, config, False)
+                if eid :
+                    pel_data = json.loads(json_string)
+                    pel_src = pel_data.get("Primary SRC", {}).get("Reference Code", "")
+                    if config.src and config.src in pel_src:
+                        if config.hex:
+                            printPELInHexFormat(data)
+                        else:
+                            final_data[eid] = pel_data
+
+            except Exception as e:
+                print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
+    if not config.hex:
+        print(prettyPrint(json.dumps(final_data, indent=4) , desiredSpace = 29))
+
 def parsePelFromRecent(path: str, config: Config) -> None:
     """
     Display the Nth most recent PEL based on the same ordering algorithm used for listing PELs.
@@ -1077,6 +1109,9 @@ def main():
 
     if args.src:
         config.src = args.src
+        if args.all:
+            parsePelDataFromSRCID(PELsPath, config)
+            sys.exit(0)
         parsePelFromSRCID(PELsPath, config)
         sys.exit(0)
 
