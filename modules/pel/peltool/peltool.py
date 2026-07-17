@@ -508,7 +508,7 @@ def parsePelFromPLID(path: str, config: Config):
     Prints a JSON-formatted string containing valid PELs in the specified directory.
     """
     plid = processId(config.plid)
-    root, file_list = getFileList(path, config.extension, config.rev)
+    root, file_list = getFileList(path, config)
     final_summary = {}
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
@@ -542,7 +542,7 @@ def parsePelFromSRCID(path: str, config: Config):
         with open(config.srcExcludeFile, 'r') as fd:
             src_exclude_file_data = fd.read()
 
-    root, file_list = getFileList(path, config.extension, config.rev)
+    root, file_list = getFileList(path, config)
     final_summary = {}
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
@@ -568,6 +568,38 @@ def parsePelFromSRCID(path: str, config: Config):
     if not config.hex:
         print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
 
+def parsePelDataFromSRCID(path: str, config: Config):
+    """
+    Parse and display PELs and complete data matching with the input SRC ID from the specified directory.
+    Returns: None
+    Prints a JSON-formatted string containing valid PELs and the data in the specified directory.
+    """
+    if config.src:
+        if len(config.src) > 32:
+            sys.exit('Invalid SRC length is provided!')
+
+    root, file_list = getFileList(path, config)
+    final_data = {}
+    for file in file_list:
+        with open(os.path.join(root, file), 'rb') as fd:
+            data = fd.read()
+            stream = DataStream(data, byte_order='big', is_signed=False)
+            try:
+                eid, json_string = parsePEL(stream, config, False)
+                if eid :
+                    pel_data = json.loads(json_string)
+                    pel_src = pel_data.get("Primary SRC", {}).get("Reference Code", "")
+                    if config.src and config.src in pel_src:
+                        if config.hex:
+                            printPELInHexFormat(data)
+                        else:
+                            final_data[eid] = pel_data
+
+            except Exception as e:
+                print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
+    if not config.hex:
+        print(prettyPrint(json.dumps(final_data, indent=4) , desiredSpace = 29))
+
 def parsePelFromRecent(path: str, config: Config) -> None:
     """
     Display the Nth most recent PEL based on the same ordering algorithm used for listing PELs.
@@ -579,7 +611,7 @@ def parsePelFromRecent(path: str, config: Config) -> None:
         sys.exit("Invalid value for --display-recent. Please provide a non-negative integer (0 = most recent, 1 = second most recent, etc.)")
     
     # Get the sorted file list using the same algorithm as list operations
-    root, file_list = getFileList(path, config.extension, config.rev)
+    root, file_list = getFileList(path, config)
     
     matching_files = []
     for file in file_list:
@@ -666,7 +698,7 @@ def extractAndSummarizePEL(file: str, config: Config):
     return "", ""
 
 
-def getFileList(path: str, extension: str, rev: bool = False):
+def getFileList(path: str, config: Config):
     """
     Reads the passed folder path and creates a list of file names in the top level
     Returns: list of file name
@@ -675,12 +707,14 @@ def getFileList(path: str, extension: str, rev: bool = False):
     root = ""
     for root, _, files in os.walk(path):
         for file in files:
-            if extension and extension != os.path.splitext(file)[1]:
+            if config.extension and config.extension != os.path.splitext(file)[1]:
                 continue
             file_list.append(file)  ## create list of file names
         # Only process top level directory
         break
-    file_list.sort(reverse=rev)
+    file_list.sort(reverse=config.rev)
+    if config.reverse_n:
+        file_list = file_list[:config.reverse_n]
     return root, file_list
 
 def listCompactOption(path: str, config: Config):
@@ -691,7 +725,7 @@ def listCompactOption(path: str, config: Config):
     Returns: None
     Prints a JSON array of compact PEL summaries with aligned columns.
     """
-    root, file_list = getFileList(path, config.extension, config.rev)
+    root, file_list = getFileList(path, config)
     data_rows = []
     
     # Collect all data first
@@ -710,7 +744,7 @@ def listCompactOption(path: str, config: Config):
                 'date': date,
                 'message': message
             })
-    
+
     # Only add header and output if there are entries
     if data_rows:
         # Calculate maximum width for each column
@@ -745,7 +779,7 @@ def listOption(path: str, config: Config):
         listCompactOption(path, config)
         return
     
-    root, file_list = getFileList(path, config.extension, config.rev)
+    root, file_list = getFileList(path, config)
     final_summary = {}
     for file in file_list:
         eid, summary = extractAndSummarizePEL(os.path.join(root, file), config)
@@ -760,7 +794,7 @@ def extractAllPELsData(path: str, config: Config):
     Returns: None.
     Prints a JSON-formatted string containing PEL data from all valid files.
     """
-    root, file_list = getFileList(path, config.extension, config.rev)
+    root, file_list = getFileList(path, config)
     if not config.hex:
         print("[")
     firstPELPrinted = False
@@ -811,7 +845,7 @@ def printPELCount(path: str, config: Config):
     Prints a JSON-formatted string containing count of valid PELs in specified directory.
     """
     count = 0
-    root, file_list = getFileList(path, config.extension)
+    root, file_list = getFileList(path, config)
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
             data = fd.read()
@@ -931,8 +965,8 @@ def main():
                         metavar='<SRC_Exclude_file>', help='Display PELs summary excluding SRCs from the file')
     parser.add_argument('-x', '--hex', action='store_true',
                         help='Display PEL(s) in hexdump instead of JSON')
-    parser.add_argument('-r', '--reverse', action='store_true',
-                        help='Reverse order of output')
+    parser.add_argument('-r', '--reverse', nargs='?', const='all', metavar='<N>',
+                        help='Reverse order of output (default: all if no value given)')
     parser.add_argument('-e', '--extension', dest='extension', metavar='<.extension>',
                         help='Search only for files with the specified extension (e.g., ".pel", ".txt")')
 
@@ -1009,8 +1043,15 @@ def main():
     if args.hex:
         config.hex = True
 
-    if args.reverse:
+    if args.reverse is not None:
         config.rev = True
+        if args.reverse != 'all':
+            try:
+                config.reverse_n = int(args.reverse)
+                if config.reverse_n <= 0:
+                    sys.exit("--reverse value must be a positive integer")
+            except ValueError:
+                sys.exit(f"--reverse value must be a positive integer, got: {args.reverse!r}")
 
     if args.extension:
         config.extension = args.extension
@@ -1077,6 +1118,9 @@ def main():
 
     if args.src:
         config.src = args.src
+        if args.all:
+            parsePelDataFromSRCID(PELsPath, config)
+            sys.exit(0)
         parsePelFromSRCID(PELsPath, config)
         sys.exit(0)
 

@@ -77,6 +77,8 @@ To see all of peltool's capabilities, use the help option `peltool.py --help`.
 - Get PEL data in hexadecimal format: `peltool.py -lx`
 - Get PEL data from BMC PEL archive path: `peltool.py -lA`
 - Get list of PELs in reverse order: `peltool.py -lr`
+- Get list of PELs in reverse order and limit to N entries: `peltool.py -l -r <N>`
+- Display the oldest serviceable PEL (inverted --display-recent): `peltool.py -R 0 -r`
 - Extract PEL data from specific file: `peltool.py  -f </path/to/pel/file>`
 - Get PEL data from files with specific extension only: `peltool.py -l -e <extension_file_format>`
 - Skip loading PEL parser plugins and list PELs: `peltool.py -lP`

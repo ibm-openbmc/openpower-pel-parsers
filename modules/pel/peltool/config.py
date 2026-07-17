@@ -12,6 +12,7 @@ class Config:
         self.hidden = False
         self.hex = False
         self.rev = False
+        self.reverse_n = None
         self.extension = None
         self.severities = []
         self.only = False
