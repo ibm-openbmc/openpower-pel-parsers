@@ -542,8 +542,9 @@ def parsePelFromSRCID(path: str, config: Config):
         with open(config.srcExcludeFile, 'r') as fd:
             src_exclude_file_data = fd.read()
 
-    root, file_list = getFileList(path, config)
+    root, file_list = getFileList(path, config, apply_reverse_n=False)
     final_summary = {}
+    hex_results = []
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
             data = fd.read()
@@ -553,20 +554,31 @@ def parsePelFromSRCID(path: str, config: Config):
                 if eid :
                     if config.src and config.src in summary['SRC']:
                         if config.hex:
-                            printPELInHexFormat(data)
+                            hex_results.append(data)
                         else:
                             final_summary[eid] = summary
                     if (config.srcExcludeFile):
                         if summary['SRC'] not in src_exclude_file_data:
                             if config.hex:
-                                printPELInHexFormat(data)
+                                hex_results.append(data)
                             else:
                                 final_summary[eid] = summary
 
             except Exception as e:
                 print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
-    if not config.hex:
-        print(prettyPrint(json.dumps(final_summary, indent=4) , desiredSpace = 29))
+
+    if config.reverse_n:
+        if config.hex:
+            hex_results = hex_results[:config.reverse_n]
+        else:
+            keys = list(final_summary.keys())[:config.reverse_n]
+            final_summary = {k: final_summary[k] for k in keys}
+
+    if config.hex:
+        for data in hex_results:
+            printPELInHexFormat(data)
+    else:
+        print(prettyPrint(json.dumps(final_summary, indent=4), desiredSpace=29))
 
 def parsePelDataFromSRCID(path: str, config: Config):
     """
@@ -578,8 +590,9 @@ def parsePelDataFromSRCID(path: str, config: Config):
         if len(config.src) > 32:
             sys.exit('Invalid SRC length is provided!')
 
-    root, file_list = getFileList(path, config)
+    root, file_list = getFileList(path, config, apply_reverse_n=False)
     final_data = {}
+    hex_results = []
     for file in file_list:
         with open(os.path.join(root, file), 'rb') as fd:
             data = fd.read()
@@ -591,14 +604,26 @@ def parsePelDataFromSRCID(path: str, config: Config):
                     pel_src = pel_data.get("Primary SRC", {}).get("Reference Code", "")
                     if config.src and config.src in pel_src:
                         if config.hex:
-                            printPELInHexFormat(data)
+                            hex_results.append(data)
                         else:
                             final_data[eid] = pel_data
 
             except Exception as e:
                 print(f"Exception: No PEL parsed for {file}: {e}", file=sys.stderr)
-    if not config.hex:
-        print(prettyPrint(json.dumps(final_data, indent=4) , desiredSpace = 29))
+
+    # Apply reverse_n limit after filtering
+    if config.reverse_n:
+        if config.hex:
+            hex_results = hex_results[:config.reverse_n]
+        else:
+            keys = list(final_data.keys())[:config.reverse_n]
+            final_data = {k: final_data[k] for k in keys}
+
+    if config.hex:
+        for data in hex_results:
+            printPELInHexFormat(data)
+    else:
+        print(prettyPrint(json.dumps(final_data, indent=4), desiredSpace=29))
 
 def parsePelFromRecent(path: str, config: Config) -> None:
     """
@@ -698,7 +723,7 @@ def extractAndSummarizePEL(file: str, config: Config):
     return "", ""
 
 
-def getFileList(path: str, config: Config):
+def getFileList(path: str, config: Config, apply_reverse_n: bool = True):
     """
     Reads the passed folder path and creates a list of file names in the top level
     Returns: list of file name
@@ -713,7 +738,7 @@ def getFileList(path: str, config: Config):
         # Only process top level directory
         break
     file_list.sort(reverse=config.rev)
-    if config.reverse_n:
+    if apply_reverse_n and config.reverse_n:
         file_list = file_list[:config.reverse_n]
     return root, file_list
 
