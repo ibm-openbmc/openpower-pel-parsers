@@ -49,6 +49,10 @@ procedures = {
 
     "BMC000C": [
         "The BMC must be passive due to an error."
+    ],
+
+    "BMC000D": [
+        "The BMC card needs replacing."
     ]
 }
 
