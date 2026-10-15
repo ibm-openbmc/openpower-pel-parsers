@@ -431,18 +431,22 @@ def deletePELFromPELId(path: str, pelID: str) -> None:
 def parseAndPrintPELFile(file_path: str, config: Config, exit_on_error: bool) -> None:
     """
     Parses a PEL file and prints the JSON string representation.
+    Use file_path='-' to read raw PEL bytes from stdin.
     Returns: None
     """
     try:
-        with open(file_path, 'rb') as fd:
-            data = fd.read()
-            stream = DataStream(data, byte_order='big', is_signed=False)
-            _, json_string = parsePEL(stream, config, exit_on_error)
-            if json_string:
-                if not config.hex:
-                    print(json_string)        
-                else:
-                    printPELInHexFormat(data)
+        if file_path == '-':
+            data = sys.stdin.buffer.read()
+        else:
+            with open(file_path, 'rb') as fd:
+                data = fd.read()
+        stream = DataStream(data, byte_order='big', is_signed=False)
+        _, json_string = parsePEL(stream, config, exit_on_error)
+        if json_string:
+            if not config.hex:
+                print(json_string)
+            else:
+                printPELInHexFormat(data)
     except Exception as e:
         print(f"Exception: No PEL parsed for {file_path}: {e}", file=sys.stderr)
 
@@ -960,6 +964,9 @@ def main():
                         metavar='</path/to/pel/file>',
                         help='Input PEL file to extract PEL data')
 
+    parser.add_argument('--stdin', action='store_true',
+                        help='Read PEL binary from stdin (equivalent to -f -)')
+
     # Mutually exclusive display mode options
     displayModeGroup = parser.add_mutually_exclusive_group()
     displayModeGroup.add_argument('-l', '--list', action='store_true',
@@ -1089,6 +1096,11 @@ def main():
 
     if args.recent is not None:
         config.recent = args.recent
+
+    if args.stdin:
+        config.every_pel = True
+        parseAndPrintPELFile('-', config, True)
+        sys.exit(0)
 
     if args.file:
         config.every_pel = True
