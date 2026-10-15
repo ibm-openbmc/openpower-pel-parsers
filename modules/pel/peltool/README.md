@@ -82,3 +82,25 @@ To see all of peltool's capabilities, use the help option `peltool.py --help`.
 - Extract PEL data from specific file: `peltool.py  -f </path/to/pel/file>`
 - Get PEL data from files with specific extension only: `peltool.py -l -e <extension_file_format>`
 - Skip loading PEL parser plugins and list PELs: `peltool.py -lP`
+
+## Read PEL from stdin
+
+- Read PEL from stdin using redirection: `peltool.py --stdin < mypel.bin`
+- Read PEL from stdin using pipe: `cat mypel.bin | peltool.py --stdin`
+- Read PEL from stdin using `-f -`: `cat mypel.bin | peltool.py -f -`
+- Read PEL from stdin via Python subprocess:
+  ```python
+  import json
+  import subprocess
+
+  with open('mypel.bin', 'rb') as f:
+      pel_data = f.read()
+
+  result = subprocess.run(
+      ['peltool.py', '--stdin'],
+      input=pel_data,
+      capture_output=True,
+      check=True
+  )
+  pel_json = json.loads(result.stdout)
+  ```
